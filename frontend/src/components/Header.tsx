@@ -1,17 +1,60 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Button } from './ui/button'
+import { useUser, useLogout } from '../lib/auth'
 
 export default function Header() {
-  return (
-    <header className="p-2 flex gap-2 bg-white text-black justify-between">
-      <nav className="flex flex-row">
-        <div className="px-2 font-bold">
-          <Link to="/">Home</Link>
-        </div>
+  const navigate = useNavigate()
+  const { data: userData, isLoading } = useUser()
+  const logoutMutation = useLogout()
 
-        <div className="px-2 font-bold">
-          <Link to="/demo/tanstack-query">TanStack Query</Link>
+  const handleLogout = () => {
+    logoutMutation.mutate()
+  }
+
+  const isAuthenticated = userData?.isAuthenticated
+
+  return (
+    <header className="p-4 flex gap-2 bg-white text-black justify-between shadow-sm">
+      <nav className="flex flex-row items-center">
+        <div className="px-2 font-bold text-lg">
+          <Link to="/">Pokemon App</Link>
         </div>
       </nav>
+
+      <div className="flex items-center gap-4">
+        {!isLoading && (
+          <>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-4">
+                <span className="text-sm">
+                  Welcome, {userData?.user?.username}
+                </span>
+                <Button 
+                  variant="outline" 
+                  onClick={handleLogout}
+                  disabled={logoutMutation.isPending}
+                >
+                  {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate({ to: '/login' })}
+                >
+                  Login
+                </Button>
+                <Button 
+                  onClick={() => navigate({ to: '/signup' })}
+                >
+                  Sign Up
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </header>
   )
 }

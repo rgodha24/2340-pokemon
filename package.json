@@ -1,4 +1,6 @@
 {
   "name": "pokemon",
-  "workspaces": ["frontend"]
+  "workspaces": [
+    "frontend"
+  ]
 }
