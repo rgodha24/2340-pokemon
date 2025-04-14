@@ -12,8 +12,12 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as SignupImport } from './routes/signup'
+import { Route as MarketplaceImport } from './routes/marketplace'
 import { Route as LoginImport } from './routes/login'
+import { Route as TradeCardImport } from './routes/TradeCard'
 import { Route as IndexImport } from './routes/index'
+import { Route as UserUsernameImport } from './routes/user.$username'
+import { Route as TradeTradeIdImport } from './routes/trade.$tradeId'
 
 // Create/Update Routes
 
@@ -23,15 +27,39 @@ const SignupRoute = SignupImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const MarketplaceRoute = MarketplaceImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const LoginRoute = LoginImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRoute,
 } as any)
 
+const TradeCardRoute = TradeCardImport.update({
+  id: '/TradeCard',
+  path: '/TradeCard',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const UserUsernameRoute = UserUsernameImport.update({
+  id: '/user/$username',
+  path: '/user/$username',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const TradeTradeIdRoute = TradeTradeIdImport.update({
+  id: '/trade/$tradeId',
+  path: '/trade/$tradeId',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -46,11 +74,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/TradeCard': {
+      id: '/TradeCard'
+      path: '/TradeCard'
+      fullPath: '/TradeCard'
+      preLoaderRoute: typeof TradeCardImport
+      parentRoute: typeof rootRoute
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginImport
+      parentRoute: typeof rootRoute
+    }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceImport
       parentRoute: typeof rootRoute
     }
     '/signup': {
@@ -60,6 +102,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupImport
       parentRoute: typeof rootRoute
     }
+    '/trade/$tradeId': {
+      id: '/trade/$tradeId'
+      path: '/trade/$tradeId'
+      fullPath: '/trade/$tradeId'
+      preLoaderRoute: typeof TradeTradeIdImport
+      parentRoute: typeof rootRoute
+    }
+    '/user/$username': {
+      id: '/user/$username'
+      path: '/user/$username'
+      fullPath: '/user/$username'
+      preLoaderRoute: typeof UserUsernameImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -67,42 +123,84 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/TradeCard': typeof TradeCardRoute
   '/login': typeof LoginRoute
+  '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
+  '/trade/$tradeId': typeof TradeTradeIdRoute
+  '/user/$username': typeof UserUsernameRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/TradeCard': typeof TradeCardRoute
   '/login': typeof LoginRoute
+  '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
+  '/trade/$tradeId': typeof TradeTradeIdRoute
+  '/user/$username': typeof UserUsernameRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/TradeCard': typeof TradeCardRoute
   '/login': typeof LoginRoute
+  '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
+  '/trade/$tradeId': typeof TradeTradeIdRoute
+  '/user/$username': typeof UserUsernameRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup'
+  fullPaths:
+    | '/'
+    | '/TradeCard'
+    | '/login'
+    | '/marketplace'
+    | '/signup'
+    | '/trade/$tradeId'
+    | '/user/$username'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup'
-  id: '__root__' | '/' | '/login' | '/signup'
+  to:
+    | '/'
+    | '/TradeCard'
+    | '/login'
+    | '/marketplace'
+    | '/signup'
+    | '/trade/$tradeId'
+    | '/user/$username'
+  id:
+    | '__root__'
+    | '/'
+    | '/TradeCard'
+    | '/login'
+    | '/marketplace'
+    | '/signup'
+    | '/trade/$tradeId'
+    | '/user/$username'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TradeCardRoute: typeof TradeCardRoute
   LoginRoute: typeof LoginRoute
+  MarketplaceRoute: typeof MarketplaceRoute
   SignupRoute: typeof SignupRoute
+  TradeTradeIdRoute: typeof TradeTradeIdRoute
+  UserUsernameRoute: typeof UserUsernameRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TradeCardRoute: TradeCardRoute,
   LoginRoute: LoginRoute,
+  MarketplaceRoute: MarketplaceRoute,
   SignupRoute: SignupRoute,
+  TradeTradeIdRoute: TradeTradeIdRoute,
+  UserUsernameRoute: UserUsernameRoute,
 }
 
 export const routeTree = rootRoute
@@ -116,18 +214,34 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/TradeCard",
         "/login",
-        "/signup"
+        "/marketplace",
+        "/signup",
+        "/trade/$tradeId",
+        "/user/$username"
       ]
     },
     "/": {
       "filePath": "index.tsx"
     },
+    "/TradeCard": {
+      "filePath": "TradeCard.tsx"
+    },
     "/login": {
       "filePath": "login.tsx"
     },
+    "/marketplace": {
+      "filePath": "marketplace.tsx"
+    },
     "/signup": {
       "filePath": "signup.tsx"
+    },
+    "/trade/$tradeId": {
+      "filePath": "trade.$tradeId.tsx"
+    },
+    "/user/$username": {
+      "filePath": "user.$username.tsx"
     }
   }
 }

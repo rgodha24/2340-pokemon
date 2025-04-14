@@ -18,3 +18,5 @@ The routes on the frontend are in the frontend/src/routes directory.
 If you plan on creating a new route, just tell me to create it.
 
 "@" is an alias for the frontend/src directory. e.g. you can import from "@/components/ui/button" instead of "../components/ui/button"
+
+ALWAYS add types to every fetch. the types live in the frontend/src/lib/types.ts file.
