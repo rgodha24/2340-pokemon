@@ -18,6 +18,7 @@ import { Route as TradeCardImport } from './routes/TradeCard'
 import { Route as IndexImport } from './routes/index'
 import { Route as UserUsernameImport } from './routes/user.$username'
 import { Route as TradeTradeIdImport } from './routes/trade.$tradeId'
+import { Route as PokemonPokemonIdImport } from './routes/pokemon.$pokemonId'
 
 // Create/Update Routes
 
@@ -63,6 +64,12 @@ const TradeTradeIdRoute = TradeTradeIdImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const PokemonPokemonIdRoute = PokemonPokemonIdImport.update({
+  id: '/pokemon/$pokemonId',
+  path: '/pokemon/$pokemonId',
+  getParentRoute: () => rootRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -102,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupImport
       parentRoute: typeof rootRoute
     }
+    '/pokemon/$pokemonId': {
+      id: '/pokemon/$pokemonId'
+      path: '/pokemon/$pokemonId'
+      fullPath: '/pokemon/$pokemonId'
+      preLoaderRoute: typeof PokemonPokemonIdImport
+      parentRoute: typeof rootRoute
+    }
     '/trade/$tradeId': {
       id: '/trade/$tradeId'
       path: '/trade/$tradeId'
@@ -127,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
+  '/pokemon/$pokemonId': typeof PokemonPokemonIdRoute
   '/trade/$tradeId': typeof TradeTradeIdRoute
   '/user/$username': typeof UserUsernameRoute
 }
@@ -137,6 +152,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
+  '/pokemon/$pokemonId': typeof PokemonPokemonIdRoute
   '/trade/$tradeId': typeof TradeTradeIdRoute
   '/user/$username': typeof UserUsernameRoute
 }
@@ -148,6 +164,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
+  '/pokemon/$pokemonId': typeof PokemonPokemonIdRoute
   '/trade/$tradeId': typeof TradeTradeIdRoute
   '/user/$username': typeof UserUsernameRoute
 }
@@ -160,6 +177,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/signup'
+    | '/pokemon/$pokemonId'
     | '/trade/$tradeId'
     | '/user/$username'
   fileRoutesByTo: FileRoutesByTo
@@ -169,6 +187,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/signup'
+    | '/pokemon/$pokemonId'
     | '/trade/$tradeId'
     | '/user/$username'
   id:
@@ -178,6 +197,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/signup'
+    | '/pokemon/$pokemonId'
     | '/trade/$tradeId'
     | '/user/$username'
   fileRoutesById: FileRoutesById
@@ -189,6 +209,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
   SignupRoute: typeof SignupRoute
+  PokemonPokemonIdRoute: typeof PokemonPokemonIdRoute
   TradeTradeIdRoute: typeof TradeTradeIdRoute
   UserUsernameRoute: typeof UserUsernameRoute
 }
@@ -199,6 +220,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
   SignupRoute: SignupRoute,
+  PokemonPokemonIdRoute: PokemonPokemonIdRoute,
   TradeTradeIdRoute: TradeTradeIdRoute,
   UserUsernameRoute: UserUsernameRoute,
 }
@@ -218,6 +240,7 @@ export const routeTree = rootRoute
         "/login",
         "/marketplace",
         "/signup",
+        "/pokemon/$pokemonId",
         "/trade/$tradeId",
         "/user/$username"
       ]
@@ -236,6 +259,9 @@ export const routeTree = rootRoute
     },
     "/signup": {
       "filePath": "signup.tsx"
+    },
+    "/pokemon/$pokemonId": {
+      "filePath": "pokemon.$pokemonId.tsx"
     },
     "/trade/$tradeId": {
       "filePath": "trade.$tradeId.tsx"

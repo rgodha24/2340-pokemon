@@ -6,25 +6,31 @@ export interface User {
 }
 
 export interface MoneyTrade {
-  id: string
-  owner_id: string
+  id: string | number
   amount_asked: number
-  status: boolean
+  status: string
 }
 
 export interface BarterTrade {
-  id: number
-  owner_id: string
+  id: string | number
   trade_preferences: string
-  status: boolean
+  status: string
 }
 
 export interface Pokemon {
   id: number
   name: string
-  // for when you're trying to sell a pokemon
+  pokeapi_id?: number
+  owner?: {
+    id: string | number
+    username: string
+  }
+  is_owner?: boolean
+  // Current trades
+  money_trade?: MoneyTrade | null
+  barter_trade?: BarterTrade | null
+  // Legacy fields for compatibility
   trade?: MoneyTrade | BarterTrade
-  // for when you're offering this pokemon to someone else in a barter trade
   offering_to?: BarterTrade
   rarity: number
   image_url: string

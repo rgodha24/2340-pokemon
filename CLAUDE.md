@@ -19,4 +19,4 @@ If you plan on creating a new route, just tell me to create it.
 
 "@" is an alias for the frontend/src directory. e.g. you can import from "@/components/ui/button" instead of "../components/ui/button"
 
-ALWAYS add types to every fetch. the types live in the frontend/src/lib/types.ts file.
+ALWAYS add types to every fetch. the types live in the frontend/src/lib/types.ts file. Try to make these types as strict as possible (e.g. if there's a field that's only available if a boolean is true, use type narrowing so that the types display this too.)

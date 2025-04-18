@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/user/$username')({
   component: RouteComponent,
@@ -32,7 +32,12 @@ function RouteComponent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.pokemon.map((pokemon) => (
-            <div key={pokemon.id} className="border rounded-lg p-4 shadow-sm">
+            <Link
+              to="/pokemon/$pokemonId"
+              params={{ pokemonId: pokemon.id }}
+              key={pokemon.id}
+              className="border rounded-lg p-4 shadow-sm"
+            >
               <img
                 src={pokemon.image_url}
                 alt={pokemon.name}
@@ -41,25 +46,24 @@ function RouteComponent() {
               <h3 className="font-medium text-lg">{pokemon.name}</h3>
               <p className="text-sm text-gray-500">ID: {pokemon.pokeapi_id}</p>
 
-              {(pokemon.money_trades.length > 0 ||
-                pokemon.barter_trades.length > 0) && (
+              {(pokemon.money_trade || pokemon.barter_trade) && (
                 <div className="mt-2">
-                  <p className="text-sm font-medium">Active Trades:</p>
+                  <p className="text-sm font-medium">Active Trade:</p>
                   <ul className="text-xs pl-4">
-                    {pokemon.money_trades.map((trade) => (
-                      <li key={`money-${trade.id}`}>
-                        Money trade: ${trade.amount_asked}
+                    {pokemon.money_trade && (
+                      <li key={`money-${pokemon.money_trade.id}`}>
+                        Money trade: ${pokemon.money_trade.amount_asked}
                       </li>
-                    ))}
-                    {pokemon.barter_trades.map((trade) => (
-                      <li key={`barter-${trade.id}`}>
-                        Barter trade: {trade.trade_preferences}
+                    )}
+                    {pokemon.barter_trade && (
+                      <li key={`barter-${pokemon.barter_trade.id}`}>
+                        Barter trade: {pokemon.barter_trade.trade_preferences}
                       </li>
-                    ))}
+                    )}
                   </ul>
                 </div>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -3,7 +3,6 @@ import json
 import pokebase as pb
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.db.models import Prefetch
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
@@ -57,19 +56,9 @@ def user_username(_, username):
     user = get_object_or_404(User, username=username)
 
     pokemon_queryset = Pokemon.objects.filter(user=user).prefetch_related(
-        Prefetch(
-            "money_trade_listing",
-            queryset=MoneyTrade.objects.filter(status="open"),
-            to_attr="open_money_trade_list",
-        ),
-        Prefetch(
-            "barter_trade_listing",
-            queryset=BarterTrade.objects.filter(status="open"),
-            to_attr="open_barter_trade_list",
-        ),
+        "money_trade_listing", "barter_trade_listing"
     )
 
-    # Serialize Pokemon data, including prefetched trades
     pokemon_data = []
     for pokemon in pokemon_queryset:
         p_dict = {
@@ -79,42 +68,38 @@ def user_username(_, username):
             "rarity": pokemon.rarity,
             "image_url": pokemon.image_url,
             "types": pokemon.types,
-            "money_trades": [],
-            "barter_trades": [],
+            "money_trade": None,
+            "barter_trade": None,
         }
 
-        # Check if the prefetched list is non-empty
-        if pokemon.open_money_trade_list:
-            trade = pokemon.open_money_trade_list[0]
-            p_dict["money_trades"] = [
-                {
-                    "id": trade.id,
-                    "amount_asked": trade.amount_asked,
-                    "status": trade.status,
-                }
-            ]
+        try:
+            trade = pokemon.money_trade_listing
+            p_dict["money_trade"] = {
+                "id": trade.id,
+                "amount_asked": trade.amount_asked,
+            }
+        except MoneyTrade.DoesNotExist:
+            pass
 
-        # Check if the prefetched list is non-empty
-        if pokemon.open_barter_trade_list:
-            trade = pokemon.open_barter_trade_list[0]
-            p_dict["barter_trades"] = [
-                {
-                    "id": trade.id,
-                    "trade_preferences": trade.trade_preferences,
-                    "status": trade.status,
-                }
-            ]
+        try:
+            trade = pokemon.barter_trade_listing
+            p_dict["barter_trade"] = {
+                "id": trade.id,
+                "trade_preferences": trade.trade_preferences,
+            }
+        except BarterTrade.DoesNotExist:
+            pass
 
         pokemon_data.append(p_dict)
 
     money_trades = list(
-        MoneyTrade.objects.filter(pokemon__user=user, status="open").values(
-            "id", "amount_asked", "status", "pokemon__id", "pokemon__name"
+        MoneyTrade.objects.filter(pokemon__user=user).values(
+            "id", "amount_asked", "pokemon__id", "pokemon__name"
         )
     )
     barter_trades = list(
-        BarterTrade.objects.filter(pokemon__user=user, status="open").values(
-            "id", "trade_preferences", "status", "pokemon__id", "pokemon__name"
+        BarterTrade.objects.filter(pokemon__user=user).values(
+            "id", "trade_preferences", "pokemon__id", "pokemon__name"
         )
     )
 
@@ -199,3 +184,191 @@ def signup_view(request):
         },
         status=201,
     )
+
+
+def pokemon_detail(request, pokemon_id):
+    pokemon = get_object_or_404(Pokemon, id=pokemon_id)
+
+    pokemon_data = {
+        "id": pokemon.id,
+        "pokeapi_id": pokemon.pokeapi_id,
+        "name": pokemon.name,
+        "rarity": pokemon.rarity,
+        "image_url": pokemon.image_url,
+        "types": pokemon.types,
+        "owner": {
+            "id": pokemon.user.id,
+            "username": pokemon.user.username,
+        },
+        "is_owner": request.user.is_authenticated
+        and request.user.id == pokemon.user.id,
+        "money_trade": None,
+        "barter_trade": None,
+    }
+
+    try:
+        money_trade = pokemon.money_trade_listing
+        pokemon_data["money_trade"] = {
+            "id": money_trade.id,
+            "amount_asked": money_trade.amount_asked,
+        }
+    except MoneyTrade.DoesNotExist:
+        pass
+
+    try:
+        barter_trade = pokemon.barter_trade_listing
+        pokemon_data["barter_trade"] = {
+            "id": barter_trade.id,
+            "trade_preferences": barter_trade.trade_preferences,
+        }
+    except BarterTrade.DoesNotExist:
+        pass
+
+    return JsonResponse({"success": True, "pokemon": pokemon_data})
+
+
+@require_POST
+def create_money_trade(request, pokemon_id):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "error": "Authentication required"}, status=401
+        )
+
+    data = json.loads(request.body)
+    amount_asked = data.get("amount_asked")
+
+    if not amount_asked or not isinstance(amount_asked, int) or amount_asked <= 0:
+        return JsonResponse(
+            {"success": False, "error": "Valid positive amount required"}, status=400
+        )
+
+    try:
+        pokemon = (
+            Pokemon.objects.select_related("user")
+            .prefetch_related("money_trade_listing", "barter_trade_listing")
+            .get(id=pokemon_id, user=request.user)
+        )
+    except Pokemon.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Pokemon not found or not owned by user"},
+            status=404,
+        )
+
+    if hasattr(pokemon, "money_trade_listing") or hasattr(
+        pokemon, "barter_trade_listing"
+    ):
+        return JsonResponse(
+            {"success": False, "error": "Pokemon is already listed in a trade"},
+            status=400,
+        )
+
+    trade = MoneyTrade.objects.create(
+        pokemon=pokemon,
+        amount_asked=amount_asked,
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "trade": {
+                "id": trade.id,
+                "amount_asked": trade.amount_asked,
+                "pokemon_id": pokemon.id,
+            },
+        },
+        status=201,
+    )
+
+
+@require_POST
+def create_barter_trade(request, pokemon_id):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "error": "Authentication required"}, status=401
+        )
+
+    data = json.loads(request.body)
+    trade_preferences = data.get("trade_preferences", "")
+
+    try:
+        pokemon = (
+            Pokemon.objects.select_related("user")
+            .prefetch_related("money_trade_listing", "barter_trade_listing")
+            .get(id=pokemon_id, user=request.user)
+        )
+    except Pokemon.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Pokemon not found or not owned by user"},
+            status=404,
+        )
+
+    if hasattr(pokemon, "money_trade_listing") or hasattr(
+        pokemon, "barter_trade_listing"
+    ):
+        return JsonResponse(
+            {"success": False, "error": "Pokemon is already listed in a trade"},
+            status=400,
+        )
+
+    trade = BarterTrade.objects.create(
+        pokemon=pokemon,
+        trade_preferences=trade_preferences,
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "trade": {
+                "id": trade.id,
+                "trade_preferences": trade.trade_preferences,
+                "pokemon_id": pokemon.id,
+            },
+        },
+        status=201,
+    )
+
+
+@require_POST
+def cancel_trade(request, pokemon_id):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"success": False, "error": "Authentication required"}, status=401
+        )
+
+    try:
+        pokemon = Pokemon.objects.prefetch_related(
+            "money_trade_listing", "barter_trade_listing"
+        ).get(id=pokemon_id, user=request.user)
+    except Pokemon.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Pokemon not found or not owned by user"},
+            status=404,
+        )
+
+    deleted_trade = False
+    try:
+        trade = pokemon.money_trade_listing
+        trade.delete()
+        deleted_trade = True
+    except MoneyTrade.DoesNotExist:
+        pass
+
+    try:
+        trade = pokemon.barter_trade_listing
+        Pokemon.objects.filter(offered_in_trade=trade).update(offered_in_trade=None)
+        trade.delete()
+        deleted_trade = True
+    except BarterTrade.DoesNotExist:
+        pass
+
+    if deleted_trade:
+        return JsonResponse(
+            {"success": True, "message": "Trade listing deleted successfully."}
+        )
+    else:
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "No active trade listing found for this Pokemon to cancel.",
+            }
+        )
