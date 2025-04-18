@@ -33,6 +33,11 @@ function RouteComponent() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {data.pokemon.map((pokemon) => (
             <div key={pokemon.id} className="border rounded-lg p-4 shadow-sm">
+              <img
+                src={pokemon.image_url}
+                alt={pokemon.name}
+                className="h-48 w-48 mx-auto mb-2"
+              />
               <h3 className="font-medium text-lg">{pokemon.name}</h3>
               <p className="text-sm text-gray-500">ID: {pokemon.pokeapi_id}</p>
 

@@ -7,12 +7,6 @@ export default function Header() {
   const { data: userData, isLoading } = useUser()
   const logoutMutation = useLogout()
 
-  const handleLogout = () => {
-    logoutMutation.mutate()
-  }
-
-  const isAuthenticated = userData?.isAuthenticated
-
   return (
     <header className="p-4 flex gap-2 bg-white text-black justify-between shadow-sm">
       <nav className="flex flex-row items-center">
@@ -22,37 +16,34 @@ export default function Header() {
       </nav>
 
       <div className="flex items-center gap-4">
-        {!isLoading && (
-          <>
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm">
-                  Welcome, {userData?.user?.username}
-                </span>
-                <Button 
-                  variant="outline" 
-                  onClick={handleLogout}
-                  disabled={logoutMutation.isPending}
-                >
-                  {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate({ to: '/login' })}
-                >
-                  Login
-                </Button>
-                <Button 
-                  onClick={() => navigate({ to: '/signup' })}
-                >
-                  Sign Up
-                </Button>
-              </div>
-            )}
-          </>
+        {userData?.user?.username ? (
+          <div className="flex items-center gap-4">
+            <Button asChild>
+              <Link
+                to="/user/$username"
+                params={{ username: userData.user!.username }}
+              >
+                Your Profile
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+            >
+              {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: '/login' })}
+            >
+              Login
+            </Button>
+            <Button onClick={() => navigate({ to: '/signup' })}>Sign Up</Button>
+          </div>
         )}
       </div>
     </header>
