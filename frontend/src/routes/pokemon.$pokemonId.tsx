@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useUser } from '@/lib/auth'
-import type { Pokemon } from '@/lib/types'
+import type { Pokemon, User } from '@/lib/types'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/pokemon/$pokemonId')({
@@ -57,6 +57,9 @@ interface PokemonDetailProps {
 function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { data: userData } = useUser()
+  const user = userData?.user as User | undefined
+  const isAuthenticated = !!userData?.isAuthenticated
   
   const cancelTrade = useMutation({
     mutationFn: async () => {
@@ -84,12 +87,50 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
     },
   })
 
+  const buyPokemon = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/pokemon/${pokemon.id}/buy/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to buy Pokemon')
+      }
+      
+      return response.json()
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || 'Pokemon purchased successfully!')
+      queryClient.invalidateQueries({ queryKey: ['pokemonDetail', pokemon.id.toString()] })
+      queryClient.invalidateQueries({ queryKey: ['userData'] })
+      navigate({ to: `/pokemon/${pokemon.id}` })
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to buy Pokemon')
+    },
+  })
+
   const handleCancelTrade = () => {
     if (confirm('Are you sure you want to cancel this trade?')) {
       cancelTrade.mutate()
     }
   }
   
+  const handleBuyPokemon = () => {
+    if (confirm(`Are you sure you want to buy ${pokemon.name} for $${pokemon.money_trade?.amount_asked}?`)) {
+      buyPokemon.mutate()
+    }
+  }
+
+  // Check if user can afford the Pokemon
+  const canAfford = user && pokemon.money_trade 
+    ? user.money >= pokemon.money_trade.amount_asked
+    : false
+
   return (
     <div className="mt-6">
       <h2 className="text-xl font-semibold mb-3">Current Trade Status</h2>
@@ -101,10 +142,17 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
           </CardHeader>
           <CardContent className="pb-2">
             <div className="flex justify-between items-center">
-              <p className="text-lg font-bold">
-                Price: ${pokemon.money_trade.amount_asked}
-              </p>
-              {isOwner && (
+              <div>
+                <p className="text-lg font-bold">
+                  Price: ${pokemon.money_trade.amount_asked}
+                </p>
+                {isAuthenticated && !isOwner && user && (
+                  <p className={`text-sm mt-1 ${canAfford ? 'text-green-600' : 'text-red-600'}`}>
+                    Your balance: ${user.money}
+                  </p>
+                )}
+              </div>
+              {isOwner ? (
                 <Button 
                   variant="destructive" 
                   onClick={handleCancelTrade}
@@ -113,6 +161,21 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
                 >
                   {cancelTrade.isPending ? "Deleting..." : "Delete Trade"}
                 </Button>
+              ) : (
+                isAuthenticated && (
+                  <Button
+                    variant="default"
+                    onClick={handleBuyPokemon}
+                    disabled={buyPokemon.isPending || !canAfford}
+                    size="sm"
+                  >
+                    {buyPokemon.isPending 
+                      ? "Processing..." 
+                      : canAfford 
+                        ? "Buy Pokemon" 
+                        : "Insufficient Funds"}
+                  </Button>
+                )
               )}
             </div>
           </CardContent>
