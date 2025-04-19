@@ -29,6 +29,30 @@ class Pokemon(models.Model):
         return self.name
 
 
+class TradeHistory(models.Model):
+    buyer = models.ForeignKey(User, related_name="purchases", on_delete=models.CASCADE)
+    seller = models.ForeignKey(User, related_name="sales", on_delete=models.CASCADE)
+    pokemon = models.ForeignKey(Pokemon, on_delete=models.SET_NULL, null=True)
+    amount = models.IntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications"
+    )
+    message = models.TextField()
+    link = models.URLField(max_length=255, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Notification({self.id}) to {self.user.username}"
+
+
 class MoneyTrade(models.Model):
     pokemon = models.OneToOneField(
         Pokemon, on_delete=models.CASCADE, related_name="money_trade_listing"

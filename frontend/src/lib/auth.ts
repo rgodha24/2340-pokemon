@@ -56,12 +56,12 @@ export function useLogin() {
         },
         body: JSON.stringify(credentials),
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Login failed')
       }
-      
+
       return response.json()
     },
     onSuccess: (data) => {
@@ -87,12 +87,12 @@ export function useSignup() {
         },
         body: JSON.stringify(userData),
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Signup failed')
       }
-      
+
       return response.json()
     },
     onSuccess: (data) => {
@@ -116,11 +116,11 @@ export function useLogout() {
           'Content-Type': 'application/json',
         },
       })
-      
+
       if (!response.ok) {
         throw new Error('Logout failed')
       }
-      
+
       return response.json()
     },
     onSuccess: () => {

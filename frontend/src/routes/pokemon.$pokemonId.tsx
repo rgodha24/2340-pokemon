@@ -60,26 +60,28 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
   const { data: userData } = useUser()
   const user = userData?.user as User | undefined
   const isAuthenticated = !!userData?.isAuthenticated
-  
+
   const cancelTrade = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/pokemon/${pokemon.id}/trade/cancel/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to cancel trade')
       }
-      
+
       return response.json()
     },
     onSuccess: () => {
       toast.success('Trade canceled successfully!')
-      queryClient.invalidateQueries({ queryKey: ['pokemonDetail', pokemon.id.toString()] })
+      queryClient.invalidateQueries({
+        queryKey: ['pokemonDetail', pokemon.id.toString()],
+      })
       navigate({ to: `/pokemon/${pokemon.id}` })
     },
     onError: (error) => {
@@ -93,19 +95,21 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to buy Pokemon')
       }
-      
+
       return response.json()
     },
     onSuccess: (data) => {
       toast.success(data.message || 'Pokemon purchased successfully!')
-      queryClient.invalidateQueries({ queryKey: ['pokemonDetail', pokemon.id.toString()] })
+      queryClient.invalidateQueries({
+        queryKey: ['pokemonDetail', pokemon.id.toString()],
+      })
       queryClient.invalidateQueries({ queryKey: ['userData'] })
       navigate({ to: `/pokemon/${pokemon.id}` })
     },
@@ -119,17 +123,22 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
       cancelTrade.mutate()
     }
   }
-  
+
   const handleBuyPokemon = () => {
-    if (confirm(`Are you sure you want to buy ${pokemon.name} for $${pokemon.money_trade?.amount_asked}?`)) {
+    if (
+      confirm(
+        `Are you sure you want to buy ${pokemon.name} for $${pokemon.money_trade?.amount_asked}?`,
+      )
+    ) {
       buyPokemon.mutate()
     }
   }
 
   // Check if user can afford the Pokemon
-  const canAfford = user && pokemon.money_trade 
-    ? user.money >= pokemon.money_trade.amount_asked
-    : false
+  const canAfford =
+    user && pokemon.money_trade
+      ? user.money >= pokemon.money_trade.amount_asked
+      : false
 
   return (
     <div className="mt-6">
@@ -147,19 +156,21 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
                   Price: ${pokemon.money_trade.amount_asked}
                 </p>
                 {isAuthenticated && !isOwner && user && (
-                  <p className={`text-sm mt-1 ${canAfford ? 'text-green-600' : 'text-red-600'}`}>
+                  <p
+                    className={`text-sm mt-1 ${canAfford ? 'text-green-600' : 'text-red-600'}`}
+                  >
                     Your balance: ${user.money}
                   </p>
                 )}
               </div>
               {isOwner ? (
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   onClick={handleCancelTrade}
                   disabled={cancelTrade.isPending}
                   size="sm"
                 >
-                  {cancelTrade.isPending ? "Deleting..." : "Delete Trade"}
+                  {cancelTrade.isPending ? 'Deleting...' : 'Delete Trade'}
                 </Button>
               ) : (
                 isAuthenticated && (
@@ -169,11 +180,11 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
                     disabled={buyPokemon.isPending || !canAfford}
                     size="sm"
                   >
-                    {buyPokemon.isPending 
-                      ? "Processing..." 
-                      : canAfford 
-                        ? "Buy Pokemon" 
-                        : "Insufficient Funds"}
+                    {buyPokemon.isPending
+                      ? 'Processing...'
+                      : canAfford
+                        ? 'Buy Pokemon'
+                        : 'Insufficient Funds'}
                   </Button>
                 )
               )}
@@ -200,14 +211,14 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
                 </p>
               </div>
               {isOwner && (
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   onClick={handleCancelTrade}
                   disabled={cancelTrade.isPending}
                   size="sm"
                   className="ml-4 self-start"
                 >
-                  {cancelTrade.isPending ? "Deleting..." : "Delete Trade"}
+                  {cancelTrade.isPending ? 'Deleting...' : 'Delete Trade'}
                 </Button>
               )}
             </div>
@@ -450,4 +461,3 @@ function PokemonDetailComponent() {
     </div>
   )
 }
-

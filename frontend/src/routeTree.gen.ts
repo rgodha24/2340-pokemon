@@ -12,9 +12,10 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as SignupImport } from './routes/signup'
+import { Route as SearchImport } from './routes/search'
+import { Route as ResetPasswordImport } from './routes/resetPassword'
 import { Route as MarketplaceImport } from './routes/marketplace'
 import { Route as LoginImport } from './routes/login'
-import { Route as TradeCardImport } from './routes/TradeCard'
 import { Route as IndexImport } from './routes/index'
 import { Route as UserUsernameImport } from './routes/user.$username'
 import { Route as TradeTradeIdImport } from './routes/trade.$tradeId'
@@ -28,6 +29,18 @@ const SignupRoute = SignupImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const SearchRoute = SearchImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ResetPasswordRoute = ResetPasswordImport.update({
+  id: '/resetPassword',
+  path: '/resetPassword',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const MarketplaceRoute = MarketplaceImport.update({
   id: '/marketplace',
   path: '/marketplace',
@@ -37,12 +50,6 @@ const MarketplaceRoute = MarketplaceImport.update({
 const LoginRoute = LoginImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const TradeCardRoute = TradeCardImport.update({
-  id: '/TradeCard',
-  path: '/TradeCard',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -81,13 +88,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/TradeCard': {
-      id: '/TradeCard'
-      path: '/TradeCard'
-      fullPath: '/TradeCard'
-      preLoaderRoute: typeof TradeCardImport
-      parentRoute: typeof rootRoute
-    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -100,6 +100,20 @@ declare module '@tanstack/react-router' {
       path: '/marketplace'
       fullPath: '/marketplace'
       preLoaderRoute: typeof MarketplaceImport
+      parentRoute: typeof rootRoute
+    }
+    '/resetPassword': {
+      id: '/resetPassword'
+      path: '/resetPassword'
+      fullPath: '/resetPassword'
+      preLoaderRoute: typeof ResetPasswordImport
+      parentRoute: typeof rootRoute
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchImport
       parentRoute: typeof rootRoute
     }
     '/signup': {
@@ -137,9 +151,10 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/TradeCard': typeof TradeCardRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
+  '/resetPassword': typeof ResetPasswordRoute
+  '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
   '/pokemon/$pokemonId': typeof PokemonPokemonIdRoute
   '/trade/$tradeId': typeof TradeTradeIdRoute
@@ -148,9 +163,10 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/TradeCard': typeof TradeCardRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
+  '/resetPassword': typeof ResetPasswordRoute
+  '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
   '/pokemon/$pokemonId': typeof PokemonPokemonIdRoute
   '/trade/$tradeId': typeof TradeTradeIdRoute
@@ -160,9 +176,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/TradeCard': typeof TradeCardRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
+  '/resetPassword': typeof ResetPasswordRoute
+  '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
   '/pokemon/$pokemonId': typeof PokemonPokemonIdRoute
   '/trade/$tradeId': typeof TradeTradeIdRoute
@@ -173,9 +190,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/TradeCard'
     | '/login'
     | '/marketplace'
+    | '/resetPassword'
+    | '/search'
     | '/signup'
     | '/pokemon/$pokemonId'
     | '/trade/$tradeId'
@@ -183,9 +201,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/TradeCard'
     | '/login'
     | '/marketplace'
+    | '/resetPassword'
+    | '/search'
     | '/signup'
     | '/pokemon/$pokemonId'
     | '/trade/$tradeId'
@@ -193,9 +212,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/TradeCard'
     | '/login'
     | '/marketplace'
+    | '/resetPassword'
+    | '/search'
     | '/signup'
     | '/pokemon/$pokemonId'
     | '/trade/$tradeId'
@@ -205,9 +225,10 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  TradeCardRoute: typeof TradeCardRoute
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  SearchRoute: typeof SearchRoute
   SignupRoute: typeof SignupRoute
   PokemonPokemonIdRoute: typeof PokemonPokemonIdRoute
   TradeTradeIdRoute: typeof TradeTradeIdRoute
@@ -216,9 +237,10 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  TradeCardRoute: TradeCardRoute,
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  SearchRoute: SearchRoute,
   SignupRoute: SignupRoute,
   PokemonPokemonIdRoute: PokemonPokemonIdRoute,
   TradeTradeIdRoute: TradeTradeIdRoute,
@@ -236,9 +258,10 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/TradeCard",
         "/login",
         "/marketplace",
+        "/resetPassword",
+        "/search",
         "/signup",
         "/pokemon/$pokemonId",
         "/trade/$tradeId",
@@ -248,14 +271,17 @@ export const routeTree = rootRoute
     "/": {
       "filePath": "index.tsx"
     },
-    "/TradeCard": {
-      "filePath": "TradeCard.tsx"
-    },
     "/login": {
       "filePath": "login.tsx"
     },
     "/marketplace": {
       "filePath": "marketplace.tsx"
+    },
+    "/resetPassword": {
+      "filePath": "resetPassword.tsx"
+    },
+    "/search": {
+      "filePath": "search.tsx"
     },
     "/signup": {
       "filePath": "signup.tsx"

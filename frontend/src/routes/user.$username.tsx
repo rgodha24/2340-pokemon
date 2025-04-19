@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import TradeHistory from '@/components/history'
 
 export const Route = createFileRoute('/user/$username')({
   component: RouteComponent,
@@ -108,6 +109,9 @@ function RouteComponent() {
           )}
         </div>
       </div>
+
+      <h2 className="text-xl font-semibold mt-6 mb-2">Trade History</h2>
+      <TradeHistory />
     </div>
   )
 }
