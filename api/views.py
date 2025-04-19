@@ -7,6 +7,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_GET
 
 from api.models import BarterTrade, MoneyTrade, Pokemon, Profile
 from api.pokeapi import random_pokemon
@@ -83,6 +85,31 @@ def search_marketplace(request):
             })
 
     return JsonResponse({"success": True, "results": results})
+
+@require_GET
+@login_required
+def user_notifications(request):
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    return JsonResponse({
+        "success": True,
+        "notifications": [
+            {
+                "id": n.id,
+                "message": n.message,
+                "link": n.link,
+                "is_read": n.is_read,
+                "created_at": n.created_at.isoformat()
+            }
+            for n in notifications
+        ]
+    })
+
+@require_POST
+@login_required
+def mark_notifications_read(request):
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({"success": True})
+
 
 def filter_marketplace(request):
     rarity = request.GET.get("rarity")
