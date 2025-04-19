@@ -14,7 +14,6 @@ import { Route as rootRoute } from './routes/__root'
 import { Route as SignupImport } from './routes/signup'
 import { Route as SearchImport } from './routes/search'
 import { Route as ResetPasswordImport } from './routes/resetPassword'
-import { Route as MarketplaceImport } from './routes/marketplace'
 import { Route as LoginImport } from './routes/login'
 import { Route as IndexImport } from './routes/index'
 import { Route as UserUsernameImport } from './routes/user.$username'
@@ -38,12 +37,6 @@ const SearchRoute = SearchImport.update({
 const ResetPasswordRoute = ResetPasswordImport.update({
   id: '/resetPassword',
   path: '/resetPassword',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const MarketplaceRoute = MarketplaceImport.update({
-  id: '/marketplace',
-  path: '/marketplace',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -93,13 +86,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginImport
-      parentRoute: typeof rootRoute
-    }
-    '/marketplace': {
-      id: '/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof MarketplaceImport
       parentRoute: typeof rootRoute
     }
     '/resetPassword': {
@@ -152,7 +138,6 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/marketplace': typeof MarketplaceRoute
   '/resetPassword': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -164,7 +149,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/marketplace': typeof MarketplaceRoute
   '/resetPassword': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -177,7 +161,6 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/marketplace': typeof MarketplaceRoute
   '/resetPassword': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -191,7 +174,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/marketplace'
     | '/resetPassword'
     | '/search'
     | '/signup'
@@ -202,7 +184,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/marketplace'
     | '/resetPassword'
     | '/search'
     | '/signup'
@@ -213,7 +194,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/login'
-    | '/marketplace'
     | '/resetPassword'
     | '/search'
     | '/signup'
@@ -226,7 +206,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
-  MarketplaceRoute: typeof MarketplaceRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SearchRoute: typeof SearchRoute
   SignupRoute: typeof SignupRoute
@@ -238,7 +217,6 @@ export interface RootRouteChildren {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
-  MarketplaceRoute: MarketplaceRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SearchRoute: SearchRoute,
   SignupRoute: SignupRoute,
@@ -259,7 +237,6 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/login",
-        "/marketplace",
         "/resetPassword",
         "/search",
         "/signup",
@@ -273,9 +250,6 @@ export const routeTree = rootRoute
     },
     "/login": {
       "filePath": "login.tsx"
-    },
-    "/marketplace": {
-      "filePath": "marketplace.tsx"
     },
     "/resetPassword": {
       "filePath": "resetPassword.tsx"

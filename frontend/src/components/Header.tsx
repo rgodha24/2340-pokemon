@@ -15,7 +15,7 @@ export default function Header() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (search.trim()) {
-      navigate({ to: '/marketplace/search', search: { q: search.trim() } })
+      navigate({ to: '/search', search: { q: search } })
       setSearch('')
     }
   }
@@ -28,7 +28,10 @@ export default function Header() {
         </div>
       </nav>
 
-      <form onSubmit={handleSearch} className="flex items-center gap-2 flex-grow max-w-md">
+      <form
+        onSubmit={handleSearch}
+        className="flex items-center gap-2 flex-grow max-w-md"
+      >
         <Input
           type="text"
           placeholder="Search Pokémon..."
@@ -36,7 +39,9 @@ export default function Header() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full"
         />
-        <Button type="submit" variant="secondary">Search</Button>
+        <Button type="submit" variant="secondary">
+          Search
+        </Button>
       </form>
 
       <div className="flex items-center gap-4">
@@ -61,7 +66,10 @@ export default function Header() {
           </div>
         ) : (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate({ to: '/login' })}>
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: '/login' })}
+            >
               Login
             </Button>
             <Button onClick={() => navigate({ to: '/signup' })}>Sign Up</Button>
