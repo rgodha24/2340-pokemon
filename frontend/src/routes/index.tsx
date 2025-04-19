@@ -32,6 +32,7 @@ function HomePage() {
                 </p>
                 <p>
                   Your Pokemon journey continues. Explore and discover more Pokemon.
+                  
                 </p>
               </div>
             ) : (
