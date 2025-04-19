@@ -21,8 +21,8 @@ function MarketplaceComponent() {
     )
   }
 
-  const moneyTrades = data.trades.filter(t => t.type === 'money')
-  const barterTrades = data.trades.filter(t => t.type === 'barter')
+  const moneyTrades = data.trades.filter((t) => t.type === 'money')
+  const barterTrades = data.trades.filter((t) => t.type === 'barter')
 
   return (
     <div className="p-4">

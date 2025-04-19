@@ -643,6 +643,23 @@ def buy_pokemon(request, pokemon_id):
             amount=money_trade.amount_asked,
         )
 
+        Notification.objects.create(
+            user=old_owner,
+            message=(
+                f"Your Pokémon {pokemon.name} was sold to "
+                f"{request.user.username} for ${money_trade.amount_asked}."
+            ),
+            link=f"/pokemon/{pokemon.id}",
+        )
+        Notification.objects.create(
+            user=request.user,
+            message=(
+                f"You bought {pokemon.name} from "
+                f"{old_owner.username} for ${money_trade.amount_asked}."
+            ),
+            link=f"/pokemon/{pokemon.id}",
+        )
+
     return JsonResponse(
         {
             "success": True,

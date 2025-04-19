@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BellIcon } from 'lucide-react'
 import {
   Popover,
@@ -9,24 +9,57 @@ import {
 interface Notification {
   id: string
   message: string
-  read: boolean
-  createdAt: string
+  is_read: boolean
+  created_at: string
 }
 
 export default function NotificationBell() {
+  const queryClient = useQueryClient()
+
   const { data } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
       const res = await fetch('/api/notifications/')
+      if (!res.ok) {
+        throw new Error('Network response was not ok')
+      }
       return res.json()
     },
   })
 
-  const notifications = data?.notifications || []
-  const unread = notifications.filter((n: Notification) => !n.read)
+  const markReadMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/notifications/read/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to mark notifications as read')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: (error) => {
+      console.error('Error marking notifications as read:', error)
+    },
+  })
+
+  const notifications: Notification[] = data?.notifications || []
+  const unread = notifications.filter((n) => !n.is_read)
+
+  const handleOpenChange = (open: boolean) => {
+    // Mark as read only when opening and there are unread notifications
+    if (open && unread.length > 0) {
+      markReadMutation.mutate()
+    }
+  }
 
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button className="relative">
           <BellIcon className="w-6 h-6" />
@@ -44,16 +77,16 @@ export default function NotificationBell() {
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {notifications.map((notification: Notification) => (
+            {notifications.map((notification) => (
               <div
                 key={notification.id}
                 className={`p-3 rounded-lg ${
-                  notification.read ? 'bg-background' : 'bg-muted'
+                  notification.is_read ? 'bg-background' : 'bg-muted'
                 }`}
               >
                 <p className="text-sm">{notification.message}</p>
                 <span className="text-xs text-muted-foreground">
-                  {new Date(notification.createdAt).toLocaleDateString()}
+                  {new Date(notification.created_at).toLocaleDateString()}
                 </span>
               </div>
             ))}

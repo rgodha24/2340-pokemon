@@ -109,7 +109,7 @@ function RouteComponent() {
           )}
         </div>
       </div>
-      
+
       <h2 className="text-xl font-semibold mt-6 mb-2">Trade History</h2>
       <TradeHistory />
     </div>

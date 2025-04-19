@@ -66,11 +66,15 @@ export default function SearchMarketplace() {
         <p>Loading...</p>
       ) : data?.results?.length ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.results.map((t: any) => (
+          {data.results.map((t) => (
             <TradeCard
               key={t.id}
               trade={{
-                pokemon: { name: t.name, imageUrl: t.image_url },
+                pokemon: {
+                  name: t.name,
+                  imageUrl: t.image_url,
+                  id: t.id,
+                },
                 creator: t.owner,
                 type: t.money_trade ? 'money' : 'barter',
                 amount: t.money_trade?.amount_asked,

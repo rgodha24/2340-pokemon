@@ -1,7 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/resetPassword')({
@@ -9,6 +18,7 @@ export const Route = createFileRoute('/resetPassword')({
 })
 
 export default function ResetPassword() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -30,18 +40,57 @@ export default function ResetPassword() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-md mx-auto p-6">
-      <h2 className="text-xl font-bold mb-4">Reset Password</h2>
-      <Input
-        type="email"
-        placeholder="Your account email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <Button type="submit" className="mt-4" disabled={loading}>
-        {loading ? 'Sending...' : 'Send Reset Link'}
-      </Button>
-    </form>
+    <div className="flex justify-center items-center min-h-[80vh]">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Reset Password</CardTitle>
+          <CardDescription>
+            Enter your email to receive a password reset link
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Your account email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-3">
+            <div className="flex justify-between w-full">
+              <Button
+                variant="outline"
+                onClick={() => navigate({ to: '/login' })}
+                type="button"
+              >
+                Back to Login
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </Button>
+            </div>
+            <div className="text-center text-sm">
+              <span>Need an account? </span>
+              <a
+                href="/signup"
+                className="text-blue-500 hover:underline"
+                onClick={(e) => {
+                  e.preventDefault()
+                  navigate({ to: '/signup' })
+                }}
+              >
+                Sign up
+              </a>
+            </div>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
   )
 }

@@ -2,7 +2,14 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card'
 import { Label } from '../components/ui/label'
 import { useSignup } from '../lib/auth'
 import { toast } from 'sonner'
@@ -21,12 +28,12 @@ function SignupComponent() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (password !== confirmPassword) {
       toast.error('Passwords do not match')
       return
     }
-    
+
     signupMutation.mutate({ username, email, password })
   }
 
@@ -35,7 +42,9 @@ function SignupComponent() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Create Account</CardTitle>
-          <CardDescription>Sign up to start your Pokemon journey</CardDescription>
+          <CardDescription>
+            Sign up to start your Pokemon journey
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -83,17 +92,32 @@ function SignupComponent() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate({ to: '/login' })}
-              type="button"
-            >
-              Back to Login
-            </Button>
-            <Button type="submit" disabled={signupMutation.isPending}>
-              {signupMutation.isPending ? 'Creating Account...' : 'Sign Up'}
-            </Button>
+          <CardFooter className="flex flex-col space-y-3">
+            <div className="flex justify-between w-full">
+              <Button
+                variant="outline"
+                onClick={() => navigate({ to: '/login' })}
+                type="button"
+              >
+                Back to Login
+              </Button>
+              <Button type="submit" disabled={signupMutation.isPending}>
+                {signupMutation.isPending ? 'Creating Account...' : 'Sign Up'}
+              </Button>
+            </div>
+            <div className="text-center text-sm">
+              <span>Forgot your password? </span>
+              <a
+                href="/resetPassword"
+                className="text-blue-500 hover:underline"
+                onClick={(e) => {
+                  e.preventDefault()
+                  navigate({ to: '/resetPassword' })
+                }}
+              >
+                Reset it here
+              </a>
+            </div>
           </CardFooter>
         </form>
       </Card>
