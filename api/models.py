@@ -9,6 +9,13 @@ class Profile(models.Model):
     def __str__(self):
         return f"{self.user.username}'s profile"
 
+class TradeHistory(models.Model):
+    buyer = models.ForeignKey(User, related_name="purchases", on_delete=models.CASCADE)
+    seller = models.ForeignKey(User, related_name="sales", on_delete=models.CASCADE)
+    pokemon = models.ForeignKey(Pokemon, on_delete=models.SET_NULL, null=True)
+    amount = models.IntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
 
 class Pokemon(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pokemon")

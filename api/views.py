@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
+from django.db.models import Q
 
 from api.models import BarterTrade, MoneyTrade, Pokemon, Profile
 from api.pokeapi import random_pokemon
@@ -50,6 +51,79 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return JsonResponse({"success": True})
+
+from django.db.models import Q
+
+def search_marketplace(request):
+    query = request.GET.get("q", "").strip().lower()
+    results = []
+
+    if query:
+        pokemon_queryset = Pokemon.objects.filter(
+            Q(name__icontains=query),
+            Q(money_trade_listing__isnull=False) | Q(barter_trade_listing__isnull=False)
+        ).select_related("user")
+
+        for p in pokemon_queryset:
+            results.append({
+                "id": p.id,
+                "name": p.name,
+                "image_url": p.image_url,
+                "rarity": p.rarity,
+                "types": p.types,
+                "owner": {"id": p.user.id, "username": p.user.username},
+                "money_trade": {
+                    "id": p.money_trade_listing.id,
+                    "amount_asked": p.money_trade_listing.amount_asked
+                } if hasattr(p, "money_trade_listing") else None,
+                "barter_trade": {
+                    "id": p.barter_trade_listing.id,
+                    "trade_preferences": p.barter_trade_listing.trade_preferences
+                } if hasattr(p, "barter_trade_listing") else None,
+            })
+
+    return JsonResponse({"success": True, "results": results})
+
+def filter_marketplace(request):
+    rarity = request.GET.get("rarity")
+    max_price = request.GET.get("max_price")
+    ptype = request.GET.get("type")
+
+    queryset = Pokemon.objects.filter(
+        Q(money_trade_listing__isnull=False) | Q(barter_trade_listing__isnull=False)
+    ).select_related("user")
+
+    if rarity:
+        queryset = queryset.filter(rarity=int(rarity))
+
+    if max_price:
+        queryset = queryset.filter(
+            money_trade_listing__amount_asked__lte=int(max_price)
+        )
+
+    if ptype:
+        queryset = queryset.filter(types__icontains=ptype.lower())
+
+    results = []
+    for p in queryset:
+        results.append({
+            "id": p.id,
+            "name": p.name,
+            "image_url": p.image_url,
+            "rarity": p.rarity,
+            "types": p.types,
+            "owner": {"id": p.user.id, "username": p.user.username},
+            "money_trade": {
+                "id": p.money_trade_listing.id,
+                "amount_asked": p.money_trade_listing.amount_asked
+            } if hasattr(p, "money_trade_listing") else None,
+            "barter_trade": {
+                "id": p.barter_trade_listing.id,
+                "trade_preferences": p.barter_trade_listing.trade_preferences
+            } if hasattr(p, "barter_trade_listing") else None,
+        })
+
+    return JsonResponse({"success": True, "results": results})
 
 
 def user_view(request):
@@ -410,6 +484,27 @@ def cancel_trade(request, pokemon_id):
             }
         )
 
+def trade_history_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "error": "Authentication required"}, status=401)
+
+    history = TradeHistory.objects.filter(
+        Q(buyer=request.user) | Q(seller=request.user)
+    ).select_related("pokemon", "buyer", "seller").order_by("-timestamp")
+
+    results = [
+        {
+            "pokemon_name": h.pokemon.name if h.pokemon else "Unknown",
+            "amount": h.amount,
+            "buyer": h.buyer.username,
+            "seller": h.seller.username,
+            "timestamp": h.timestamp.isoformat()
+        }
+        for h in history
+    ]
+
+    return JsonResponse({"success": True, "history": results})
+
 
 @require_POST
 def buy_pokemon(request, pokemon_id):
@@ -476,6 +571,15 @@ def buy_pokemon(request, pokemon_id):
 
         # Delete the trade
         money_trade.delete()
+
+        # Log trade history
+        from api.models import TradeHistory
+        TradeHistory.objects.create(
+            buyer=request.user,
+            seller=old_owner,
+            pokemon=pokemon,
+            amount=money_trade.amount_asked,
+        )
 
     return JsonResponse(
         {

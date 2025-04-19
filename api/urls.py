@@ -13,5 +13,10 @@ urlpatterns = [
     path("pokemon/<int:pokemon_id>/trade/money/", views.create_money_trade, name="create_money_trade"),
     path("pokemon/<int:pokemon_id>/trade/barter/", views.create_barter_trade, name="create_barter_trade"),
     path("pokemon/<int:pokemon_id>/trade/cancel/", views.cancel_trade, name="cancel_trade"),
-    path("pokemon/<int:pokemon_id>/buy/", views.buy_pokemon, name="buy_pokemon")
+    path("pokemon/<int:pokemon_id>/buy/", views.buy_pokemon, name="buy_pokemon"),
+    path("marketplace/search/", views.search_marketplace, name="search_marketplace"),
+    path("marketplace/filter/", views.filter_marketplace, name="filter_marketplace")
+    path("marketplace/history/", views.trade_history_view, name="trade_history"),
+
+
 ]
