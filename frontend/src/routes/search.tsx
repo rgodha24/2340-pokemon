@@ -1,6 +1,11 @@
+import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import TradeCard from '../TradeCard'
+import TradeCard from '@/components/TradeCard'
+
+export const Route = createFileRoute('/search')({
+  component: SearchMarketplace,
+})
 
 export default function SearchMarketplace() {
   const [query, setQuery] = useState('')
@@ -31,7 +36,11 @@ export default function SearchMarketplace() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select value={rarity} onChange={(e) => setRarity(e.target.value)} className="border px-3 py-2 rounded">
+        <select
+          value={rarity}
+          onChange={(e) => setRarity(e.target.value)}
+          className="border px-3 py-2 rounded"
+        >
           <option value="">All Rarities</option>
           <option value="1">★☆☆☆☆</option>
           <option value="2">★★☆☆☆</option>
@@ -39,7 +48,11 @@ export default function SearchMarketplace() {
           <option value="4">★★★★☆</option>
           <option value="5">★★★★★</option>
         </select>
-        <select value={ptype} onChange={(e) => setType(e.target.value)} className="border px-3 py-2 rounded">
+        <select
+          value={ptype}
+          onChange={(e) => setType(e.target.value)}
+          className="border px-3 py-2 rounded"
+        >
           <option value="">All Types</option>
           <option value="fire">Fire</option>
           <option value="water">Water</option>

@@ -1,10 +1,11 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Button } from './ui/button'
 import { useUser, useLogout } from '../lib/auth'
+import NotificationBell from './notifications'
 
 export default function Header() {
   const navigate = useNavigate()
-  const { data: userData, isLoading } = useUser()
+  const { data: userData } = useUser()
   const logoutMutation = useLogout()
 
   return (
@@ -16,6 +17,7 @@ export default function Header() {
       </nav>
 
       <div className="flex items-center gap-4">
+        <NotificationBell />
         {userData?.user?.username ? (
           <div className="flex items-center gap-4">
             <Button asChild>

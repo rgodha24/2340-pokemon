@@ -21,14 +21,18 @@ export default function TradeHistory() {
         <ul className="space-y-4">
           {data.history.map((h: any, i: number) => (
             <li key={i} className="border p-4 rounded shadow">
-              <p><strong>{h.pokemon_name}</strong></p>
+              <p>
+                <strong>{h.pokemon_name}</strong>
+              </p>
               <p>
                 {h.buyer === h.currentUser
                   ? `You bought it from ${h.seller}`
                   : `You sold it to ${h.buyer}`}
               </p>
               <p>Amount: ${h.amount}</p>
-              <p className="text-gray-500 text-sm">Date: {new Date(h.timestamp).toLocaleString()}</p>
+              <p className="text-gray-500 text-sm">
+                Date: {new Date(h.timestamp).toLocaleString()}
+              </p>
             </li>
           ))}
         </ul>
