@@ -1,10 +1,10 @@
 import json
-
 import pokebase as pb
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
+from .models import Pokemon, TradeRequest
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import user_passes_test
@@ -194,6 +194,15 @@ def user_view(request):
     return JsonResponse({"isAuthenticated": False})
 
 
+@require_GET
+@login_required
+def my_pokemon_view(request):
+    pokemons = Pokemon.objects.filter(user=request.user)
+    return JsonResponse({
+        "success": True,
+        "pokemon": [{"id": p.id, "name": p.name} for p in pokemons]
+    })
+
 def user_username(_, username):
     user = get_object_or_404(User, username=username)
 
@@ -382,7 +391,7 @@ def pokemon_detail(request, pokemon_id):
     except BarterTrade.DoesNotExist:
         pass
 
-    return JsonResponse({"success": True, "pokemon": pokemon_data})
+    return JsonResponse({"success": True, "pokemon": pokemon_data, "is_owner": request.user.is_authenticated and request.user.id == pokemon.user.id })
 
 
 @require_POST
@@ -535,21 +544,78 @@ def manage_trade(request, trade_type, trade_id):
 def manage_report(request, report_id):
     """Update report status and add admin notes"""
     try:
-        report = TradeReport.objects.get(id=report_id)
-        data = json.loads(request.body)
-        
-        report.status = data.get('status', report.status)
-        report.admin_notes = data.get('admin_notes', report.admin_notes)
-        
-        if data.get('status') in ['resolved', 'dismissed']:
-            report.resolved_at = timezone.now()
-            report.resolved_by = request.user
-        
-        report.save()
-        return JsonResponse({'status': 'success'})
-    except TradeReport.DoesNotExist:
-        return JsonResponse({'error': 'Report not found'}, status=404)
+              buyer_profile = Profile.objects.get(user=request.user)
+    except Profile.DoesNotExist:
+        buyer_profile = Profile.objects.create(user=request.user)
 
+    try:
+        seller_profile = Profile.objects.get(user=pokemon.user)
+    except Profile.DoesNotExist:
+        seller_profile = Profile.objects.create(user=pokemon.user)
+
+    # Check if buyer has enough money
+    if buyer_profile.money < money_trade.amount_asked:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "You don't have enough money for this purchase",
+            },
+            status=400,
+        )
+
+    # Process the transaction
+    with transaction.atomic():
+        # Transfer money
+        buyer_profile.money -= money_trade.amount_asked
+        seller_profile.money += money_trade.amount_asked
+        buyer_profile.save()
+        seller_profile.save()
+
+        # Transfer ownership
+        old_owner = pokemon.user
+        pokemon.user = request.user
+        pokemon.save()
+
+        # Delete the trade
+        money_trade.delete()
+
+        TradeHistory.objects.create(
+            buyer=request.user,
+            seller=old_owner,
+            pokemon=pokemon,
+            amount=money_trade.amount_asked,
+        )
+
+        Notification.objects.create(
+            user=old_owner,
+            message=(
+                f"Your Pokémon {pokemon.name} was sold to "
+                f"{request.user.username} for ${money_trade.amount_asked}."
+            ),
+            link=f"/pokemon/{pokemon.id}",
+        )
+        Notification.objects.create(
+            user=request.user,
+            message=(
+                f"You bought {pokemon.name} from "
+                f"{old_owner.username} for ${money_trade.amount_asked}."
+            ),
+            link=f"/pokemon/{pokemon.id}",
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"You successfully bought {pokemon.name} for ${money_trade.amount_asked}",
+            "pokemon": {
+                "id": pokemon.id,
+                "name": pokemon.name,
+                "previous_owner": old_owner.username,
+            },
+            "money_remaining": buyer_profile.money,
+        }
+    )
+     
 @user_passes_test(is_admin)
 def list_reports(request):
     """Get paginated list of reports"""
@@ -598,4 +664,127 @@ def trade_activity(request):
             'id', 'pokemon__name', 'buyer__username', 'seller__username',
             'amount', 'timestamp', 'is_flagged', 'admin_notes'
         ))
+    })
+ 
+@require_POST
+@login_required
+def send_trade_request(request):
+    data = json.loads(request.body)
+    receiver_id = data.get("receiver_id")
+    sender_pokemon_id = data.get("sender_pokemon_id")
+    receiver_pokemon_id = data.get("receiver_pokemon_id")
+
+    if not (receiver_id and sender_pokemon_id and receiver_pokemon_id):
+        return JsonResponse({"success": False, "error": "Missing fields"}, status=400)
+
+    receiver = get_object_or_404(User, id=receiver_id)
+    sender_pokemon = get_object_or_404(Pokemon, id=sender_pokemon_id, user=request.user)
+    receiver_pokemon = get_object_or_404(Pokemon, id=receiver_pokemon_id, user=receiver)
+    if request.user == receiver:
+        return JsonResponse({"success": False, "error": "You cannot trade with yourself"}, status=400)
+
+    trade = TradeRequest.objects.create(
+        sender=request.user,
+        receiver=receiver,
+        sender_pokemon=sender_pokemon,
+        receiver_pokemon=receiver_pokemon,
+    )
+
+    return JsonResponse({"success": True, "trade_id": trade.id}, status=201)
+
+@require_POST
+@login_required
+def respond_trade_request(request, trade_id):
+    data = json.loads(request.body)
+    action = data.get("action")  # "accept" or "decline"
+
+    if action not in ["accept", "decline"]:
+        return JsonResponse({"success": False, "error": "Invalid action"}, status=400)
+
+    trade = get_object_or_404(TradeRequest, id=trade_id, receiver=request.user)
+
+    if trade.status != "pending":
+        return JsonResponse({"success": False, "error": "Trade already resolved"}, status=400)
+
+    trade.status = "accepted" if action == "accept" else "declined"
+    trade.save()
+
+    # If accepted, swap ownership
+    if action == "accept":
+        sender_pokemon = trade.sender_pokemon
+        receiver_pokemon = trade.receiver_pokemon
+        sender = trade.sender
+        receiver = trade.receiver
+
+        sender_pokemon.user = receiver
+        receiver_pokemon.user = sender
+
+        sender_pokemon.save()
+        receiver_pokemon.save()
+
+    return JsonResponse({"success": True, "new_status": trade.status})
+
+@require_GET
+@login_required
+def incoming_trades_view(request):
+    trades = TradeRequest.objects.filter(receiver=request.user, status="pending").select_related("sender", "sender_pokemon", "receiver_pokemon")
+
+    trade_list = [
+        {
+            "id": t.id,
+            "sender": {"id": t.sender.id, "username": t.sender.username},
+            "receiver": {"id": t.receiver.id, "username": t.receiver.username},
+            "sender_pokemon": {"id": t.sender_pokemon.id, "name": t.sender_pokemon.name},
+            "receiver_pokemon": {"id": t.receiver_pokemon.id, "name": t.receiver_pokemon.name},
+            "status": t.status,
+            "created_at": t.created_at.isoformat(),
+        }
+        for t in trades
+    ]
+
+    return JsonResponse({"success": True, "trades": trade_list})
+
+@require_GET
+@login_required
+def incoming_trades_for_pokemon(request, pokemon_id):
+    pokemon = get_object_or_404(Pokemon, id=pokemon_id, user=request.user)
+
+    trades = TradeRequest.objects.filter(
+        receiver=request.user,
+        receiver_pokemon=pokemon,
+        status="pending",
+    ).select_related("sender", "sender_pokemon")
+
+    trades_data = [
+        {
+            "id": trade.id,
+            "sender_username": trade.sender.username,
+            "sender_pokemon_name": trade.sender_pokemon.name,
+        }
+        for trade in trades
+    ]
+
+    return JsonResponse({"success": True, "trades": trades_data})
+
+@require_GET
+def user_profile(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    pokemons = Pokemon.objects.filter(user=user)
+
+    return JsonResponse({
+        "success": True,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+        },
+        "collection": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "image_url": p.image_url,
+                "rarity": p.rarity,
+                "types": p.types,
+            }
+            for p in pokemons
+        ]
     })

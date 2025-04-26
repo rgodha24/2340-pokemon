@@ -92,6 +92,7 @@ export interface Report {
     admin_notes: string | null;
 }
 
+
 export interface TradeReport {
     id: number;
     reporter: User;
@@ -111,3 +112,49 @@ export interface DashboardData {
     pending_reports: number;
     recent_trades: Trade[];
 } 
+=======
+export interface TradeRequest {
+  id: number
+  sender: { id: number; username: string }
+  receiver: { id: number; username: string }
+  sender_pokemon: { id: number; name: string }
+  receiver_pokemon: { id: number; name: string }
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+}
+
+export interface UserProfile {
+  id: number
+  username: string
+  collection: {
+    id: number
+    name: string
+    image_url: string
+    rarity: number
+    types: string[]
+  }[]
+}
+
+export type PokemonDetailResponse = {
+  id: number
+  success: boolean
+  pokeapi_id: number
+  name: string
+  rarity: number
+  image_url: string
+  types: string[]
+  owner: {
+    id: number
+    username: string
+  }
+  is_owner: boolean
+  money_trade?: {
+    id: number
+    amount_asked: number
+  } | null
+  barter_trade?: {
+    id: number
+    trade_preferences: string
+  } | null
+  pokemon: Pokemon
+}

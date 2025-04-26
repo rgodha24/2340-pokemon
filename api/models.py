@@ -39,6 +39,18 @@ class TradeHistory(models.Model):
     is_flagged = models.BooleanField(default=False)
     flag_reason = models.TextField(blank=True, null=True)
 
+class TradeRequest(models.Model):
+    sender = models.ForeignKey(User, related_name="sent_trades", on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, related_name="received_trades", on_delete=models.CASCADE)
+    sender_pokemon = models.ForeignKey("Pokemon", related_name="offered_in_trades", on_delete=models.CASCADE)
+    receiver_pokemon = models.ForeignKey("Pokemon", related_name="requested_in_trades", on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=10,
+        choices=[("pending", "Pending"), ("accepted", "Accepted"), ("declined", "Declined")],
+        default="pending"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
 
 class Notification(models.Model):
     id = models.AutoField(primary_key=True)

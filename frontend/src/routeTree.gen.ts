@@ -15,6 +15,7 @@ import { Route as SignupImport } from './routes/signup'
 import { Route as MarketplaceImport } from './routes/marketplace'
 import { Route as LoginImport } from './routes/login'
 import { Route as AdminImport } from './routes/admin'
+import { Route as IncomingTradesImport } from './routes/incoming-trades'
 import { Route as IndexImport } from './routes/index'
 import { Route as UserUsernameImport } from './routes/user.$username'
 import { Route as TradeTradeIdImport } from './routes/trade.$tradeId'
@@ -43,6 +44,12 @@ const LoginRoute = LoginImport.update({
 const AdminRoute = AdminImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRoute,
+} as any)
+  
+const IncomingTradesRoute = IncomingTradesImport.update({
+  id: '/incoming-trades',
+  path: '/incoming-trades',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -86,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminImport
+      parentRoute: typeof rootRoute
+    }
+    '/incoming-trades': {
+      id: '/incoming-trades'
+      path: '/incoming-trades'
+      fullPath: '/incoming-trades'
+      preLoaderRoute: typeof IncomingTradesImport
       parentRoute: typeof rootRoute
     }
     '/login': {
@@ -138,6 +152,7 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/incoming-trades': typeof IncomingTradesRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
@@ -149,6 +164,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/incoming-trades': typeof IncomingTradesRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
@@ -161,6 +177,7 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/incoming-trades': typeof IncomingTradesRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/signup': typeof SignupRoute
@@ -171,16 +188,51 @@ export interface FileRoutesById {
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/login' | '/marketplace' | '/signup'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/marketplace'
+    | '/signup'
+    | '/incoming-trades'
+    | '/resetPassword'
+    | '/search'
+    | '/pokemon/$pokemonId'
+    | '/trade/$tradeId'
+    | '/user/$username'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/login' | '/marketplace' | '/signup'
-  id: '__root__' | '/' | '/admin' | '/login' | '/marketplace' | '/signup'
+  to:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/marketplace'
+    | '/signup'
+    | '/incoming-trades'
+    | '/resetPassword'
+    | '/search'
+    | '/pokemon/$pokemonId'
+    | '/trade/$tradeId'
+    | '/user/$username'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/marketplace'
+    | '/signup'
+    | '/incoming-trades'
+    | '/resetPassword'
+    | '/search'
+    | '/pokemon/$pokemonId'
+    | '/trade/$tradeId'
+    | '/user/$username'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  IncomingTradesRoute: typeof IncomingTradesRoute
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
   SignupRoute: typeof SignupRoute
@@ -192,6 +244,7 @@ export interface RootRouteChildren {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  IncomingTradesRoute: IncomingTradesRoute,
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
   SignupRoute: SignupRoute,
@@ -212,6 +265,7 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/admin",
+        "/incoming-trades",
         "/login",
         "/marketplace",
         "/signup"
@@ -222,6 +276,8 @@ export const routeTree = rootRoute
     },
     "/admin": {
       "filePath": "admin.tsx"
+    "/incoming-trades": {
+      "filePath": "incoming-trades.tsx"
     },
     "/login": {
       "filePath": "login.tsx"
