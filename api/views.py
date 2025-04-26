@@ -8,18 +8,11 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Pokemon, TradeRequest
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from django.views.decorators.http import require_GET, require_POST
-
-from api.models import (
-    BarterTrade,
-    MoneyTrade,
-    Notification,
-    Pokemon,
-    Profile,
-    TradeHistory,
-)
-from api.pokeapi import random_pokemon
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import user_passes_test
+from django.utils import timezone
+from django.db.models import Q
+from .models import MoneyTrade, BarterTrade, TradeHistory, TradeReport
 
 
 def index(_):
@@ -504,115 +497,56 @@ def create_barter_trade(request, pokemon_id):
     )
 
 
-@require_POST
-def cancel_trade(request, pokemon_id):
-    if not request.user.is_authenticated:
-        return JsonResponse(
-            {"success": False, "error": "Authentication required"}, status=401
-        )
+def is_admin(user):
+    return user.is_staff
 
+@user_passes_test(is_admin)
+def admin_dashboard(request):
+    """Get overview statistics for admin dashboard"""
+    active_money_trades = MoneyTrade.objects.filter(status='active').count()
+    active_barter_trades = BarterTrade.objects.filter(status='active').count()
+    flagged_trades = MoneyTrade.objects.filter(is_flagged=True).count() + BarterTrade.objects.filter(is_flagged=True).count()
+    pending_reports = TradeReport.objects.filter(status='pending').count()
+    recent_trades = TradeHistory.objects.order_by('-timestamp')[:5]
+
+    return JsonResponse({
+        'active_trades': active_money_trades + active_barter_trades,
+        'flagged_trades': flagged_trades,
+        'pending_reports': pending_reports,
+        'recent_trades': list(recent_trades.values('id', 'pokemon__name', 'buyer__username', 'seller__username', 'amount', 'timestamp'))
+    })
+
+@user_passes_test(is_admin)
+def manage_trade(request, trade_type, trade_id):
+    """Update trade status (flag/unflag/remove)"""
     try:
-        pokemon = Pokemon.objects.prefetch_related(
-            "money_trade_listing", "barter_trade_listing"
-        ).get(id=pokemon_id, user=request.user)
-    except Pokemon.DoesNotExist:
-        return JsonResponse(
-            {"success": False, "error": "Pokemon not found or not owned by user"},
-            status=404,
-        )
+        model = MoneyTrade if trade_type == 'money' else BarterTrade
+        trade = model.objects.get(id=trade_id)
+        data = json.loads(request.body)
+        action = data.get('action')
+        
+        if action == 'flag':
+            trade.is_flagged = True
+            trade.status = 'flagged'
+            trade.flag_reason = data.get('reason')
+        elif action == 'unflag':
+            trade.is_flagged = False
+            trade.status = 'active'
+            trade.flag_reason = None
+        elif action == 'remove':
+            trade.status = 'removed'
+        
+        trade.admin_notes = data.get('admin_notes', trade.admin_notes)
+        trade.save()
+        return JsonResponse({'status': 'success'})
+    except (MoneyTrade.DoesNotExist, BarterTrade.DoesNotExist):
+        return JsonResponse({'error': 'Trade not found'}, status=404)
 
-    deleted_trade = False
+@user_passes_test(is_admin)
+def manage_report(request, report_id):
+    """Update report status and add admin notes"""
     try:
-        trade = pokemon.money_trade_listing
-        trade.delete()
-        deleted_trade = True
-    except MoneyTrade.DoesNotExist:
-        pass
-
-    try:
-        trade = pokemon.barter_trade_listing
-        Pokemon.objects.filter(offered_in_trade=trade).update(offered_in_trade=None)
-        trade.delete()
-        deleted_trade = True
-    except BarterTrade.DoesNotExist:
-        pass
-
-    if deleted_trade:
-        return JsonResponse(
-            {"success": True, "message": "Trade listing deleted successfully."}
-        )
-    else:
-        return JsonResponse(
-            {
-                "success": True,
-                "message": "No active trade listing found for this Pokemon to cancel.",
-            }
-        )
-
-
-def trade_history_view(request):
-    if not request.user.is_authenticated:
-        return JsonResponse(
-            {"success": False, "error": "Authentication required"}, status=401
-        )
-
-    history = (
-        TradeHistory.objects.filter(Q(buyer=request.user) | Q(seller=request.user))
-        .select_related("pokemon", "buyer", "seller")
-        .order_by("-timestamp")
-    )
-
-    results = [
-        {
-            "pokemon_name": h.pokemon.name if h.pokemon else "Unknown",
-            "amount": h.amount,
-            "buyer": h.buyer.username,
-            "seller": h.seller.username,
-            "timestamp": h.timestamp.isoformat(),
-        }
-        for h in history
-    ]
-
-    return JsonResponse({"success": True, "history": results})
-
-
-@require_POST
-def buy_pokemon(request, pokemon_id):
-    if not request.user.is_authenticated:
-        return JsonResponse(
-            {"success": False, "error": "Authentication required"}, status=401
-        )
-
-    try:
-        pokemon = (
-            Pokemon.objects.select_related("user")
-            .prefetch_related("money_trade_listing")
-            .get(id=pokemon_id)
-        )
-    except Pokemon.DoesNotExist:
-        return JsonResponse(
-            {"success": False, "error": "Pokemon not found"}, status=404
-        )
-
-    # Check if this is the user's own pokemon
-    if pokemon.user == request.user:
-        return JsonResponse(
-            {"success": False, "error": "You cannot buy your own Pokemon"}, status=400
-        )
-
-    # Check if the pokemon is up for money trade
-    try:
-        money_trade = pokemon.money_trade_listing
-    except MoneyTrade.DoesNotExist:
-        return JsonResponse(
-            {"success": False, "error": "This Pokemon is not for sale"}, status=400
-        )
-
-    # Get buyer and seller profiles
-    from django.db import transaction
-
-    try:
-        buyer_profile = Profile.objects.get(user=request.user)
+              buyer_profile = Profile.objects.get(user=request.user)
     except Profile.DoesNotExist:
         buyer_profile = Profile.objects.create(user=request.user)
 
@@ -683,7 +617,57 @@ def buy_pokemon(request, pokemon_id):
             "money_remaining": buyer_profile.money,
         }
     )
+     
+@user_passes_test(is_admin)
+def list_reports(request):
+    """Get paginated list of reports"""
+    status = request.GET.get('status')
+    page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('per_page', 20))
+    
+    reports = TradeReport.objects.all().order_by('-created_at')
+    if status:
+        reports = reports.filter(status=status)
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    
+    reports_page = reports[start:end]
+    total_pages = (reports.count() + per_page - 1) // per_page
+    
+    return JsonResponse({
+        'reports': [{
+            'id': report.id,
+            'trade_type': 'money' if report.money_trade else 'barter',
+            'trade_id': report.money_trade.id if report.money_trade else report.barter_trade.id,
+            'reporter': report.reporter.username,
+            'reason': report.reason,
+            'status': report.status,
+            'created_at': report.created_at.isoformat(),
+            'resolved_at': report.resolved_at.isoformat() if report.resolved_at else None,
+            'admin_notes': report.admin_notes
+        } for report in reports_page],
+        'total_pages': total_pages,
+        'current_page': page
+    })
 
+@user_passes_test(is_admin)
+def trade_activity(request):
+    """Get recent trade activity for monitoring"""
+    days = int(request.GET.get('days', 7))
+    since = timezone.now() - timezone.timedelta(days=days)
+    
+    trades = TradeHistory.objects.filter(
+        timestamp__gte=since
+    ).order_by('-timestamp')
+    
+    return JsonResponse({
+        'trades': list(trades.values(
+            'id', 'pokemon__name', 'buyer__username', 'seller__username',
+            'amount', 'timestamp', 'is_flagged', 'admin_notes'
+        ))
+    })
+ 
 @require_POST
 @login_required
 def send_trade_request(request):
