@@ -15,6 +15,7 @@ import { Route as SignupImport } from './routes/signup'
 import { Route as SearchImport } from './routes/search'
 import { Route as ResetPasswordImport } from './routes/resetPassword'
 import { Route as LoginImport } from './routes/login'
+import { Route as IncomingTradesImport } from './routes/incoming-trades'
 import { Route as IndexImport } from './routes/index'
 import { Route as UserUsernameImport } from './routes/user.$username'
 import { Route as TradeTradeIdImport } from './routes/trade.$tradeId'
@@ -43,6 +44,12 @@ const ResetPasswordRoute = ResetPasswordImport.update({
 const LoginRoute = LoginImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const IncomingTradesRoute = IncomingTradesImport.update({
+  id: '/incoming-trades',
+  path: '/incoming-trades',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -79,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/incoming-trades': {
+      id: '/incoming-trades'
+      path: '/incoming-trades'
+      fullPath: '/incoming-trades'
+      preLoaderRoute: typeof IncomingTradesImport
       parentRoute: typeof rootRoute
     }
     '/login': {
@@ -137,6 +151,7 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/incoming-trades': typeof IncomingTradesRoute
   '/login': typeof LoginRoute
   '/resetPassword': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
@@ -148,6 +163,7 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/incoming-trades': typeof IncomingTradesRoute
   '/login': typeof LoginRoute
   '/resetPassword': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
@@ -160,6 +176,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/incoming-trades': typeof IncomingTradesRoute
   '/login': typeof LoginRoute
   '/resetPassword': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
@@ -173,6 +190,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/incoming-trades'
     | '/login'
     | '/resetPassword'
     | '/search'
@@ -183,6 +201,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/incoming-trades'
     | '/login'
     | '/resetPassword'
     | '/search'
@@ -193,6 +212,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/incoming-trades'
     | '/login'
     | '/resetPassword'
     | '/search'
@@ -205,6 +225,7 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  IncomingTradesRoute: typeof IncomingTradesRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SearchRoute: typeof SearchRoute
@@ -216,6 +237,7 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  IncomingTradesRoute: IncomingTradesRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SearchRoute: SearchRoute,
@@ -236,6 +258,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/incoming-trades",
         "/login",
         "/resetPassword",
         "/search",
@@ -247,6 +270,9 @@ export const routeTree = rootRoute
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/incoming-trades": {
+      "filePath": "incoming-trades.tsx"
     },
     "/login": {
       "filePath": "login.tsx"

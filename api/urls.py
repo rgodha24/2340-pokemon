@@ -33,4 +33,10 @@ urlpatterns = [
     path(
         "notifications/read/", views.mark_notifications_read, name="notifications_read"
     ),
+    path("send-trade/", views.send_trade_request, name="send_trade"),
+    path("respond-trade/<int:trade_id>/", views.respond_trade_request, name="respond_trade"),
+    path("incoming-trades/", views.incoming_trades_view, name="incoming_trades"),
+    path('incoming-trades/<int:pokemon_id>/', views.incoming_trades_for_pokemon, name='incoming-trades-pokemon'),
+    path("profile/<int:user_id>/", views.user_profile, name="user_profile"),
+    path("my-pokemon/", views.my_pokemon_view),
 ]
