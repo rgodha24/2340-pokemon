@@ -35,9 +35,13 @@ class TradeHistory(models.Model):
     pokemon = models.ForeignKey(Pokemon, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField()
     timestamp = models.DateTimeField(auto_now_add=True)
+    admin_notes = models.TextField(blank=True, null=True)
+    is_flagged = models.BooleanField(default=False)
+    flag_reason = models.TextField(blank=True, null=True)
 
 
 class Notification(models.Model):
+    id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="notifications"
     )
@@ -54,10 +58,23 @@ class Notification(models.Model):
 
 
 class MoneyTrade(models.Model):
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('flagged', 'Flagged'),
+        ('removed', 'Removed'),
+    ]
+    
     pokemon = models.OneToOneField(
         Pokemon, on_delete=models.CASCADE, related_name="money_trade_listing"
     )
     amount_asked = models.IntegerField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    is_flagged = models.BooleanField(default=False)
+    flag_reason = models.TextField(blank=True, null=True)
+    admin_notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def owner(self):
@@ -68,10 +85,23 @@ class MoneyTrade(models.Model):
 
 
 class BarterTrade(models.Model):
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('flagged', 'Flagged'),
+        ('removed', 'Removed'),
+    ]
+    
     pokemon = models.OneToOneField(
         Pokemon, on_delete=models.CASCADE, related_name="barter_trade_listing"
     )
     trade_preferences = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    is_flagged = models.BooleanField(default=False)
+    flag_reason = models.TextField(blank=True, null=True)
+    admin_notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def owner(self):
@@ -79,3 +109,28 @@ class BarterTrade(models.Model):
 
     def __str__(self):
         return f"Barter for {self.pokemon.name}"
+
+
+class TradeReport(models.Model):
+    REPORT_STATUS = [
+        ('pending', 'Pending'),
+        ('investigating', 'Investigating'),
+        ('resolved', 'Resolved'),
+        ('dismissed', 'Dismissed'),
+    ]
+    
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submitted_reports')
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=REPORT_STATUS, default='pending')
+    admin_notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='resolved_reports')
+    
+    # Polymorphic relationship to either MoneyTrade or BarterTrade
+    money_trade = models.ForeignKey(MoneyTrade, on_delete=models.CASCADE, null=True, blank=True, related_name='reports')
+    barter_trade = models.ForeignKey(BarterTrade, on_delete=models.CASCADE, null=True, blank=True, related_name='reports')
+
+    def __str__(self):
+        trade = self.money_trade or self.barter_trade
+        return f"Report on {trade} by {self.reporter.username}"

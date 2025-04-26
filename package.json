@@ -2,5 +2,8 @@
   "name": "pokemon",
   "workspaces": [
     "frontend"
-  ]
+  ],
+  "dependencies": {
+    "date-fns": "^4.1.0"
+  }
 }
