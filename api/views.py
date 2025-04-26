@@ -1,3 +1,5 @@
+from django.views.decorators.csrf import csrf_exempt
+import requests
 import json
 import pokebase as pb
 from django.contrib.auth import authenticate, login, logout
@@ -788,3 +790,60 @@ def user_profile(request, user_id):
             for p in pokemons
         ]
     })
+
+HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
+HUGGINGFACE_TOKEN = "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"
+
+@csrf_exempt
+@require_POST
+def chatbot_chat(request):
+    try:
+        data = json.loads(request.body)
+        prompt = data.get("prompt", "")
+
+        if not prompt:
+            return JsonResponse({"success": False, "error": "No prompt provided"}, status=400)
+
+        print(f"\n🌟 Incoming prompt: {prompt}\n")
+
+        headers = {
+            "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "temperature": 0.5,
+                "max_new_tokens": 100,
+            },
+        }
+
+        print(f"Sending to HuggingFace...\nHeaders: {headers}\nPayload: {payload}\n")
+
+        response = requests.post(HUGGINGFACE_API_URL, headers=headers, json=payload)
+
+        print(f"HuggingFace raw response: {response.status_code}")
+        print(f"HuggingFace body: {response.text}\n")
+
+        if response.status_code != 200:
+            return JsonResponse(
+                {"success": False, "error": f"HuggingFace error: {response.text}"},
+                status=500
+            )
+
+        hf_response = response.json()
+
+        model_output = ""
+        if isinstance(hf_response, list) and "generated_text" in hf_response[0]:
+            model_output = hf_response[0]["generated_text"]
+        elif "generated_text" in hf_response:
+            model_output = hf_response["generated_text"]
+        else:
+            model_output = "⚠️ Unexpected HuggingFace response format."
+
+        return JsonResponse({"success": True, "reply": model_output})
+
+    except Exception as e:
+        print(f"Exception in chatbot_chat: {e}")
+        return JsonResponse({"success": False, "error": str(e)}, status=500)

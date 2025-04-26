@@ -44,4 +44,5 @@ urlpatterns = [
     path('incoming-trades/<int:pokemon_id>/', views.incoming_trades_for_pokemon, name='incoming-trades-pokemon'),
     path("profile/<int:user_id>/", views.user_profile, name="user_profile"),
     path("my-pokemon/", views.my_pokemon_view),
+    path("chat/", views.chatbot_chat, name="chatbot_chat"),
 ]
