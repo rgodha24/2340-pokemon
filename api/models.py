@@ -36,6 +36,18 @@ class TradeHistory(models.Model):
     amount = models.IntegerField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
+class TradeRequest(models.Model):
+    sender = models.ForeignKey(User, related_name="sent_trades", on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, related_name="received_trades", on_delete=models.CASCADE)
+    sender_pokemon = models.ForeignKey("Pokemon", related_name="offered_in_trades", on_delete=models.CASCADE)
+    receiver_pokemon = models.ForeignKey("Pokemon", related_name="requested_in_trades", on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=10,
+        choices=[("pending", "Pending"), ("accepted", "Accepted"), ("declined", "Declined")],
+        default="pending"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
 
 class Notification(models.Model):
     user = models.ForeignKey(
@@ -79,3 +91,5 @@ class BarterTrade(models.Model):
 
     def __str__(self):
         return f"Barter for {self.pokemon.name}"
+
+
