@@ -34,6 +34,7 @@ urlpatterns = [
     path("marketplace/search/", views.search_marketplace, name="search_marketplace"),
     path("marketplace/filter/", views.filter_marketplace, name="filter_marketplace"),
     path("marketplace/history/", views.trade_history_view, name="trade_history"),
+    path("featured-pokemon/", views.featured_pokemon, name="featured_pokemon"),
     path("notifications/", views.user_notifications, name="notifications"),
     path(
         "notifications/read/", views.mark_notifications_read, name="notifications_read"

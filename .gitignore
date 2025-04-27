@@ -3,3 +3,4 @@
 **/tailwind.css
 node_modules/
 .env
+.opencode/
