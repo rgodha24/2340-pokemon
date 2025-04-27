@@ -1,3 +1,4 @@
+from django.contrib.auth import views as auth_views
 from django.urls import path
 
 from . import views
@@ -7,9 +8,14 @@ urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("signup/", views.signup_view, name="signup"),
+    path("password-reset/", views.password_reset, name="password_reset"),
     path("user/", views.user_view, name="user"),
     path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
-    path("admin/trade/<str:trade_type>/<int:trade_id>/", views.manage_trade, name="manage_trade"),
+    path(
+        "admin/trade/<str:trade_type>/<int:trade_id>/",
+        views.manage_trade,
+        name="manage_trade",
+    ),
     path("admin/report/<int:report_id>/", views.manage_report, name="manage_report"),
     path("admin/reports/", views.list_reports, name="list_reports"),
     path("admin/activity/", views.trade_activity, name="trade_activity"),
@@ -40,10 +46,33 @@ urlpatterns = [
         "notifications/read/", views.mark_notifications_read, name="notifications_read"
     ),
     path("send-trade/", views.send_trade_request, name="send_trade"),
-    path("respond-trade/<int:trade_id>/", views.respond_trade_request, name="respond_trade"),
+    path(
+        "respond-trade/<int:trade_id>/",
+        views.respond_trade_request,
+        name="respond_trade",
+    ),
     path("incoming-trades/", views.incoming_trades_view, name="incoming_trades"),
-    path('incoming-trades/<int:pokemon_id>/', views.incoming_trades_for_pokemon, name='incoming-trades-pokemon'),
+    path(
+        "incoming-trades/<int:pokemon_id>/",
+        views.incoming_trades_for_pokemon,
+        name="incoming-trades-pokemon",
+    ),
     path("profile/<int:user_id>/", views.user_profile, name="user_profile"),
     path("my-pokemon/", views.my_pokemon_view),
     path("chat/", views.chatbot_chat, name="chatbot_chat"),
+    path(
+        "reset-password-confirm/<uidb64>/<token>/",
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name="registration/password_reset_confirm.html",
+            success_url="/login?reset=success",
+        ),
+        name="password_reset_confirm",
+    ),
+    path(
+        "reset-password-complete/",
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name="registration/password_reset_complete.html"
+        ),
+        name="password_reset_complete",
+    ),
 ]
