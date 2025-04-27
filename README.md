@@ -16,4 +16,4 @@ Username: user
 
 Password: 12345
 
-Can login via http://localhost:5173, but to access dashboard you need to go to http://localhost:8000/admin
+Can login via http://localhost:5173/admin or http://localhost:8000/admin
