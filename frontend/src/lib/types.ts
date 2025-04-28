@@ -174,10 +174,14 @@ export type PokemonDetailResponse = {
   money_trade?: {
     id: number
     amount_asked: number
+    is_flagged?: boolean
+    flag_reason?: string
   } | null
   barter_trade?: {
     id: number
     trade_preferences: string
+    is_flagged?: boolean
+    flag_reason?: string
   } | null
   pokemon: Pokemon
 }

@@ -12,7 +12,7 @@ class Profile(models.Model):
 
 class Pokemon(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pokemon")
-    pokeapi_id = models.IntegerField(unique=True, db_index=True)
+    pokeapi_id = models.IntegerField(db_index=True)
     name = models.CharField(max_length=100)
     rarity = models.IntegerField()
     image_url = models.URLField(max_length=255, blank=True, null=True)
@@ -38,21 +38,38 @@ class TradeHistory(models.Model):
     admin_notes = models.TextField(blank=True, null=True)
     is_flagged = models.BooleanField(default=False)
     flag_reason = models.TextField(blank=True, null=True)
-    trade_type = models.CharField(max_length=10, blank=True, null=True)  # 'money' or 'barter'
-    trade_ref_id = models.IntegerField(blank=True, null=True)  # ID of MoneyTrade or BarterTrade
+    trade_type = models.CharField(
+        max_length=10, blank=True, null=True
+    )  # 'money' or 'barter'
+    trade_ref_id = models.IntegerField(
+        blank=True, null=True
+    )  # ID of MoneyTrade or BarterTrade
+
 
 class TradeRequest(models.Model):
-    sender = models.ForeignKey(User, related_name="sent_trades", on_delete=models.CASCADE)
-    receiver = models.ForeignKey(User, related_name="received_trades", on_delete=models.CASCADE)
-    sender_pokemon = models.ForeignKey("Pokemon", related_name="offered_in_trades", on_delete=models.CASCADE)
-    receiver_pokemon = models.ForeignKey("Pokemon", related_name="requested_in_trades", on_delete=models.CASCADE)
+    sender = models.ForeignKey(
+        User, related_name="sent_trades", on_delete=models.CASCADE
+    )
+    receiver = models.ForeignKey(
+        User, related_name="received_trades", on_delete=models.CASCADE
+    )
+    sender_pokemon = models.ForeignKey(
+        "Pokemon", related_name="offered_in_trades", on_delete=models.CASCADE
+    )
+    receiver_pokemon = models.ForeignKey(
+        "Pokemon", related_name="requested_in_trades", on_delete=models.CASCADE
+    )
     status = models.CharField(
         max_length=10,
-        choices=[("pending", "Pending"), ("accepted", "Accepted"), ("declined", "Declined")],
-        default="pending"
+        choices=[
+            ("pending", "Pending"),
+            ("accepted", "Accepted"),
+            ("declined", "Declined"),
+        ],
+        default="pending",
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
 
 class Notification(models.Model):
     id = models.AutoField(primary_key=True)
@@ -73,17 +90,17 @@ class Notification(models.Model):
 
 class MoneyTrade(models.Model):
     STATUS_CHOICES = [
-        ('active', 'Active'),
-        ('completed', 'Completed'),
-        ('flagged', 'Flagged'),
-        ('removed', 'Removed'),
+        ("active", "Active"),
+        ("completed", "Completed"),
+        ("flagged", "Flagged"),
+        ("removed", "Removed"),
     ]
-    
+
     pokemon = models.OneToOneField(
         Pokemon, on_delete=models.CASCADE, related_name="money_trade_listing"
     )
     amount_asked = models.IntegerField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     is_flagged = models.BooleanField(default=False)
     flag_reason = models.TextField(blank=True, null=True)
     admin_notes = models.TextField(blank=True, null=True)
@@ -100,17 +117,17 @@ class MoneyTrade(models.Model):
 
 class BarterTrade(models.Model):
     STATUS_CHOICES = [
-        ('active', 'Active'),
-        ('completed', 'Completed'),
-        ('flagged', 'Flagged'),
-        ('removed', 'Removed'),
+        ("active", "Active"),
+        ("completed", "Completed"),
+        ("flagged", "Flagged"),
+        ("removed", "Removed"),
     ]
-    
+
     pokemon = models.OneToOneField(
         Pokemon, on_delete=models.CASCADE, related_name="barter_trade_listing"
     )
     trade_preferences = models.TextField(blank=True, default="")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     is_flagged = models.BooleanField(default=False)
     flag_reason = models.TextField(blank=True, null=True)
     admin_notes = models.TextField(blank=True, null=True)
@@ -127,24 +144,41 @@ class BarterTrade(models.Model):
 
 class TradeReport(models.Model):
     REPORT_STATUS = [
-        ('pending', 'Pending'),
-        ('investigating', 'Investigating'),
-        ('resolved', 'Resolved'),
-        ('dismissed', 'Dismissed'),
+        ("pending", "Pending"),
+        ("investigating", "Investigating"),
+        ("resolved", "Resolved"),
+        ("dismissed", "Dismissed"),
     ]
-    
-    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submitted_reports')
+
+    reporter = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="submitted_reports"
+    )
     reason = models.TextField()
-    status = models.CharField(max_length=20, choices=REPORT_STATUS, default='pending')
+    status = models.CharField(max_length=20, choices=REPORT_STATUS, default="pending")
     admin_notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
-    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='resolved_reports')
-    
+    resolved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="resolved_reports"
+    )
+
     # Polymorphic relationship to either MoneyTrade or BarterTrade
-    money_trade = models.ForeignKey(MoneyTrade, on_delete=models.CASCADE, null=True, blank=True, related_name='reports')
-    barter_trade = models.ForeignKey(BarterTrade, on_delete=models.CASCADE, null=True, blank=True, related_name='reports')
+    money_trade = models.ForeignKey(
+        MoneyTrade,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reports",
+    )
+    barter_trade = models.ForeignKey(
+        BarterTrade,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reports",
+    )
 
     def __str__(self):
         trade = self.money_trade or self.barter_trade
         return f"Report on {trade} by {self.reporter.username}"
+

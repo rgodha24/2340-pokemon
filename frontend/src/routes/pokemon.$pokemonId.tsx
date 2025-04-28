@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ReportDialog } from '@/components/ReportDialog'
 import {
   Card,
   CardContent,
@@ -178,47 +179,79 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
       {pokemon.money_trade && (
         <Card className="mb-4">
           <CardHeader>
-            <CardTitle>Money Trade</CardTitle>
-            <CardDescription>This Pokemon is listed for sale</CardDescription>
-          </CardHeader>
-          <CardContent className="pb-2">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-lg font-bold">
-                  Price: ${pokemon.money_trade.amount_asked}
-                </p>
-                {isAuthenticated && !isOwner && user && (
-                  <p
-                    className={`text-sm mt-1 ${canAfford ? 'text-green-600' : 'text-red-600'}`}
-                  >
-                    Your balance: ${user.money}
-                  </p>
-                )}
+                <CardTitle>Money Trade</CardTitle>
+                <CardDescription>This Pokemon is listed for sale</CardDescription>
               </div>
-              {isOwner ? (
-                <Button
-                  variant="destructive"
-                  onClick={handleCancelTrade}
-                  disabled={cancelTrade.isPending}
-                  size="sm"
+              {pokemon.money_trade?.is_flagged && (
+                <div 
+                  className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium"
+                  title={pokemon.money_trade.flag_reason || "This trade has been flagged for review"}
                 >
-                  {cancelTrade.isPending ? 'Deleting...' : 'Delete Listing'}
-                </Button>
-              ) : (
-                isAuthenticated && (
+                  Flagged
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-lg font-bold">
+                    Price: ${pokemon.money_trade.amount_asked}
+                  </p>
+                  {isAuthenticated && !isOwner && user && (
+                    <p
+                      className={`text-sm mt-1 ${canAfford ? 'text-green-600' : 'text-red-600'}`}
+                    >
+                      Your balance: ${user.money}
+                    </p>
+                  )}
+                </div>
+                {isOwner ? (
                   <Button
-                    variant="default"
-                    onClick={handleBuyPokemon}
-                    disabled={buyPokemon.isPending || !canAfford}
+                    variant="destructive"
+                    onClick={handleCancelTrade}
+                    disabled={cancelTrade.isPending}
                     size="sm"
                   >
-                    {buyPokemon.isPending
-                      ? 'Processing...'
-                      : canAfford
-                        ? 'Buy Pokemon'
-                        : 'Insufficient Funds'}
+                    {cancelTrade.isPending ? 'Deleting...' : 'Delete Listing'}
                   </Button>
-                )
+                ) : (
+                  isAuthenticated && (
+                    <Button
+                      variant="default"
+                      onClick={handleBuyPokemon}
+                      disabled={buyPokemon.isPending || !canAfford}
+                      size="sm"
+                    >
+                      {buyPokemon.isPending
+                        ? 'Processing...'
+                        : canAfford
+                          ? 'Buy Pokemon'
+                          : 'Insufficient Funds'}
+                    </Button>
+                  )
+                )}
+              </div>
+              
+              {pokemon.money_trade?.is_flagged && (
+                <div className="bg-red-50 p-3 rounded-md border border-red-200 text-sm text-red-700 mt-2">
+                  <p className="font-medium">This trade has been flagged for review</p>
+                  {pokemon.money_trade.flag_reason && (
+                    <p className="mt-1">Reason: {pokemon.money_trade.flag_reason}</p>
+                  )}
+                </div>
+              )}
+              
+              {isAuthenticated && !isOwner && !pokemon.money_trade?.is_flagged && (
+                <div className="flex justify-end">
+                  <ReportDialog 
+                    tradeId={pokemon.money_trade.id} 
+                    trigger={<Button variant="outline" size="sm">Report Trade</Button>}
+                  />
+                </div>
               )}
             </div>
           </CardContent>
@@ -228,10 +261,22 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
       {pokemon.barter_trade && (
         <Card className="mb-4">
           <CardHeader>
-            <CardTitle>Barter Trade</CardTitle>
-            <CardDescription>
-              This Pokemon is available for trade offers
-            </CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Barter Trade</CardTitle>
+                <CardDescription>
+                  This Pokemon is available for trade offers
+                </CardDescription>
+              </div>
+              {pokemon.barter_trade?.is_flagged && (
+                <div 
+                  className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium"
+                  title={pokemon.barter_trade.flag_reason || "This trade has been flagged for review"}
+                >
+                  Flagged
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="pb-2 space-y-4">
             <div>
@@ -351,6 +396,21 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
                     </p>
                   )}
                 </div>
+                {pokemon.barter_trade?.is_flagged ? (
+                  <div className="bg-red-50 p-3 rounded-md border border-red-200 text-sm text-red-700 mt-3">
+                    <p className="font-medium">This trade has been flagged for review</p>
+                    {pokemon.barter_trade.flag_reason && (
+                      <p className="mt-1">Reason: {pokemon.barter_trade.flag_reason}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex justify-end mt-3">
+                    <ReportDialog 
+                      tradeId={pokemon.barter_trade.id} 
+                      trigger={<Button variant="outline" size="sm">Report Trade</Button>}
+                    />
+                  </div>
+                )}
               </>
             )}
           </CardContent>

@@ -463,7 +463,6 @@ def pokemon_detail(request, pokemon_id):
         {
             "success": True,
             "pokemon": pokemon_data,
-            # is_owner is now included in format_pokemon_data if request.user is passed
         }
     )
 
@@ -1152,6 +1151,7 @@ def chatbot_chat(request):
 @require_POST
 @login_required
 def submit_trade_report(request, trade_id):
+    print("hello are we here")
     """Submit a report for a trade"""
     try:
         data = json.loads(request.body)

@@ -134,15 +134,26 @@ interface SearchMarketplaceResponse {
   error?: string
 }
 
-// Simplified Trade Detail type based on trade.$tradeId.tsx usage
-// Needs refinement based on actual API response structure
+// Trade Detail type based on API response
 interface TradeDetail {
   id: number
-  pokemon: { name: string }
+  pokemon: { 
+    id: number
+    name: string 
+    image_url: string
+    rarity: number
+    types?: string
+  }
   type: 'money' | 'barter'
-  owner: { username: string }
+  owner: { 
+    id: number
+    username: string 
+  }
   amount_asked?: number
   trade_preferences?: string
+  created_at?: string
+  is_flagged?: boolean
+  admin_notes?: string
 }
 
 interface TradeDetailResponse {
@@ -480,9 +491,6 @@ export class ApiService {
   public async getTradeDetail(
     tradeId: string | number,
   ): Promise<TradeDetailResponse> {
-    // Assuming endpoint /api/trade/{tradeId}/ based on routes/trade.$tradeId.tsx queryFn
-    // Note: This URL isn't explicitly listed in api/urls.py, might need adjustment.
-    // Let's assume it exists for now.
     return this._request<TradeDetailResponse>(`/trade/${tradeId}/`)
   }
 

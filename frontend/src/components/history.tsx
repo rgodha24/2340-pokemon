@@ -25,26 +25,21 @@ export default function TradeHistory() {
               <p>
                 <strong>{h.pokemon_name}</strong> (Trade ID: {h.id})
               </p>
-              <p>
+              <Link
+                to="/user/$username"
+                params={{
+                  username: h.buyer === h.currentUser ? h.seller : h.buyer,
+                }}
+                className="text-blue-600 underline hover:text-blue-800"
+              >
                 {h.buyer === h.currentUser
                   ? `You bought it from ${h.seller}`
                   : `You sold it to ${h.buyer}`}
-              </p>
+              </Link>
               <p>Amount: ${h.amount}</p>
               <p className="text-gray-500 text-sm">
                 Date: {new Date(h.timestamp).toLocaleString()}
               </p>
-              {h.trade_ref_id && (
-                <p>
-                  <Link
-                    to="/trade/$tradeId"
-                    params={{ tradeId: String(h.trade_ref_id) }}
-                    className="text-blue-600 underline hover:text-blue-800"
-                  >
-                    View Trade Details
-                  </Link>
-                </p>
-              )}
             </li>
           ))}
         </ul>

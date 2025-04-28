@@ -44,6 +44,7 @@ def format_money_trade_data(trade: MoneyTrade) -> dict | None:
         "id": trade.id,
         "amount_asked": trade.amount_asked,
         "status": trade.status,
+        "is_flagged": trade.is_flagged,
     }
 
 
@@ -55,6 +56,7 @@ def format_barter_trade_data(trade: BarterTrade) -> dict | None:
         "id": trade.id,
         "trade_preferences": trade.trade_preferences,
         "status": trade.status,
+        "is_flagged": trade.is_flagged,
     }
 
 

@@ -24,7 +24,7 @@ function RouteComponent() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">
-        {data.user.username}'s Profile
+        {data.user.username}'s Profile (${data.user.money})
       </h1>
 
       <h2 className="text-xl font-semibold mt-6 mb-2">Pokémon Collection</h2>
