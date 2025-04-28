@@ -396,9 +396,9 @@ def buy_pokemon(request, pokemon_id):
         pokemon.user = request.user
         pokemon.save()
 
-       # Mark the trade as completed instead of deleting it
+        # Mark the trade as completed instead of deleting it
         money_trade_id = money_trade.id
-        money_trade.status = 'completed'
+        money_trade.status = "completed"
         money_trade.save()
 
         TradeHistory.objects.create(
@@ -406,10 +406,9 @@ def buy_pokemon(request, pokemon_id):
             seller=old_owner,
             pokemon=pokemon,
             amount=money_trade.amount_asked,
-            trade_type='money',
+            trade_type="money",
             trade_ref_id=money_trade_id,
         )
-        history_entry.save()
 
         # Mark trade as completed instead of deleting? Or delete is fine.
         money_trade.delete()  # Or money_trade.status = 'completed'; money_trade.save()
@@ -1148,3 +1147,99 @@ def chatbot_chat(request):
         return JsonResponse(
             {"success": False, "error": "An internal error occurred."}, status=500
         )
+
+
+@require_POST
+@login_required
+def submit_trade_report(request, trade_id):
+    """Submit a report for a trade"""
+    try:
+        data = json.loads(request.body)
+        reason = data.get("reason")
+
+        if not reason:
+            return JsonResponse(
+                {"success": False, "error": "Reason is required"}, status=400
+            )
+
+        # Try to find the trade (either money or barter)
+        try:
+            trade = MoneyTrade.objects.get(id=trade_id)
+            trade_type = "money"
+        except MoneyTrade.DoesNotExist:
+            try:
+                trade = BarterTrade.objects.get(id=trade_id)
+                trade_type = "barter"
+            except BarterTrade.DoesNotExist:
+                return JsonResponse(
+                    {"success": False, "error": "Trade not found"}, status=404
+                )
+
+        # Create the report
+        report = TradeReport.objects.create(
+            reporter=request.user,
+            reason=reason,
+            **{f"{trade_type}_trade": trade},  # Set either money_trade or barter_trade
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Report submitted successfully",
+                "report_id": report.id,
+            }
+        )
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "Invalid JSON data"}, status=400
+        )
+
+
+@require_GET
+def trade_detail_view(request, trade_id):
+    """Return details for a trade (money or barter) by its ID"""
+    # Try to find a MoneyTrade first
+    try:
+        trade = MoneyTrade.objects.select_related("pokemon", "pokemon__user").get(
+            id=trade_id
+        )
+        trade_type = "money"
+    except MoneyTrade.DoesNotExist:
+        try:
+            trade = BarterTrade.objects.select_related("pokemon", "pokemon__user").get(
+                id=trade_id
+            )
+            trade_type = "barter"
+        except BarterTrade.DoesNotExist:
+            return JsonResponse(
+                {"success": False, "error": "Trade not found"}, status=404
+            )
+
+    pokemon = trade.pokemon
+    owner = pokemon.user
+    trade_data = {
+        "id": trade.id,
+        "type": trade_type,
+        "pokemon": {
+            "id": pokemon.id,
+            "name": pokemon.name,
+            "image_url": pokemon.image_url,
+            "rarity": pokemon.rarity,
+            "types": pokemon.types,
+        },
+        "owner": {
+            "id": owner.id,
+            "username": owner.username,
+        },
+        "created_at": trade.created_at.isoformat()
+        if hasattr(trade, "created_at")
+        else None,
+        "is_flagged": getattr(trade, "is_flagged", False),
+        "admin_notes": getattr(trade, "admin_notes", None),
+    }
+    if trade_type == "money":
+        trade_data["amount_asked"] = trade.amount_asked
+    else:
+        trade_data["trade_preferences"] = trade.trade_preferences
+
+    return JsonResponse({"success": True, "trade": trade_data})

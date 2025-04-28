@@ -504,11 +504,12 @@ function TradeDialogs({ pokemon }: { pokemon: PokemonDetailResponse }) {
 }
 
 function PokemonDetailComponent() {
-  const { pokemon, is_owner: isOwner } = Route.useLoaderData()
+  const { pokemon } = Route.useLoaderData()
   const { data: userData } = useUser()
   const isAuthenticated = userData?.isAuthenticated
   const owner = pokemon.owner
   const rarityStars = '★'.repeat(pokemon.rarity)
+  const isOwner = owner?.id === userData?.user?.id
 
   return (
     <div className="container mx-auto p-4">

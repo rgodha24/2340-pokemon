@@ -171,7 +171,6 @@ export type PokemonDetailResponse = {
     id: number
     username: string
   }
-  is_owner: boolean
   money_trade?: {
     id: number
     amount_asked: number
@@ -182,4 +181,3 @@ export type PokemonDetailResponse = {
   } | null
   pokemon: Pokemon
 }
-

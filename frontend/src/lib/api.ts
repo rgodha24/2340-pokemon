@@ -321,7 +321,6 @@ export class ApiService {
   public async getPokemonDetail(
     pokemonId: string | number,
   ): Promise<PokemonDetailResponse> {
-    // Include credentials to check ownership
     return this._request<PokemonDetailResponse>(
       `/pokemon/${pokemonId}/`,
       {},
