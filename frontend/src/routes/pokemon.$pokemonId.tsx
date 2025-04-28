@@ -24,29 +24,17 @@ import {
 import { useUser } from '@/lib/auth'
 import type { User, PokemonDetailResponse } from '@/lib/types'
 import { toast } from 'sonner'
-
-type PokemonDetails = PokemonDetailResponse['pokemon']
+import { ApiService } from '@/lib/api'
 
 export const Route = createFileRoute('/pokemon/$pokemonId')({
   component: PokemonDetailComponent,
   loader: async ({ params }) => {
-    const res = await fetch(`/api/pokemon/${params.pokemonId}/`, {
-      credentials: 'include',
-    })
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}))
-      throw new Error(errorData.error || 'Failed to load Pokemon details')
-    }
-    const data = (await res.json()) as PokemonDetailResponse
-    if (!data.success) {
-      throw new Error('API request failed to retrieve Pokemon details')
-    }
-    return data
+    return ApiService.getInstance().getPokemonDetail(params.pokemonId)
   },
 })
 
 interface PokemonDetailProps {
-  pokemon: PokemonDetails
+  pokemon: PokemonDetailResponse
   isOwner: boolean
 }
 
@@ -61,11 +49,7 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
   const { data: myPokemons, isLoading: isLoadingMyPokemons } = useQuery({
     queryKey: ['myPokemons'],
     queryFn: async () => {
-      const res = await fetch('/api/my-pokemon/', { credentials: 'include' })
-      if (!res.ok) throw new Error('Failed to fetch your Pokémon')
-      const data = await res.json()
-      if (!data.success) throw new Error('Failed to fetch your Pokémon list')
-      return data.pokemon as { id: number; name: string }[]
+      return ApiService.getInstance().getMyPokemon()
     },
     enabled: isAuthenticated && !isOwner && !!pokemon.barter_trade,
   })
@@ -74,18 +58,7 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
     {
       queryKey: ['incomingOffers', pokemon.id],
       queryFn: async () => {
-        const res = await fetch(`/api/incoming-trades/${pokemon.id}/`, {
-          credentials: 'include',
-        })
-        if (!res.ok) throw new Error('Failed to fetch incoming offers')
-        const data = await res.json()
-        if (!data.success)
-          throw new Error('Failed to fetch incoming offers list')
-        return data.trades as {
-          id: number
-          sender_username: string
-          sender_pokemon_name: string
-        }[]
+        return ApiService.getInstance().getIncomingOffersForPokemon(pokemon.id)
       },
       enabled: isOwner && !!pokemon.barter_trade,
     },
@@ -93,18 +66,7 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
 
   const cancelTrade = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/pokemon/${pokemon.id}/trade/cancel/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to cancel trade listing')
-      }
-      return response.json()
+      return ApiService.getInstance().cancelTradeListing(pokemon.id)
     },
     onSuccess: () => {
       toast.success('Trade listing canceled successfully!')
@@ -117,18 +79,7 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
 
   const buyPokemon = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/pokemon/${pokemon.id}/buy/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to buy Pokemon')
-      }
-      return response.json()
+      return ApiService.getInstance().buyPokemon(pokemon.id)
     },
     onSuccess: (data) => {
       toast.success(data.message || 'Pokemon purchased successfully!')
@@ -146,21 +97,11 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
       if (!pokemon.owner)
         throw new Error('Pokemon owner information is missing')
 
-      const res = await fetch('/api/send-trade/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          receiver_id: pokemon.owner.id,
-          receiver_pokemon_id: pokemon.id,
-          sender_pokemon_id: Number(selectedPokemonId),
-        }),
+      return ApiService.getInstance().sendTradeRequest({
+        receiver_id: pokemon.owner.id,
+        receiver_pokemon_id: pokemon.id,
+        sender_pokemon_id: Number(selectedPokemonId),
       })
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to send trade request')
-      }
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Trade request sent!')
@@ -182,17 +123,7 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
       tradeId: number
       action: 'accept' | 'decline'
     }) => {
-      const res = await fetch(`/api/respond-trade/${tradeId}/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      })
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to respond to trade')
-      }
-      return res.json()
+      return ApiService.getInstance().respondTradeRequest(tradeId, action)
     },
     onSuccess: (_, variables) => {
       toast.success(`Trade ${variables.action}ed!`)
@@ -435,7 +366,7 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
   )
 }
 
-function TradeDialogs({ pokemon }: { pokemon: PokemonDetails }) {
+function TradeDialogs({ pokemon }: { pokemon: PokemonDetailResponse }) {
   const [moneyAmount, setMoneyAmount] = useState('')
   const [tradePreferences, setTradePreferences] = useState('')
   const [moneyDialogOpen, setMoneyDialogOpen] = useState(false)
@@ -444,19 +375,10 @@ function TradeDialogs({ pokemon }: { pokemon: PokemonDetails }) {
 
   const createMoneyTrade = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/pokemon/${pokemon.id}/trade/money/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ amount_asked: parseInt(moneyAmount) }),
+      return ApiService.getInstance().createMoneyTrade({
+        pokemonId: pokemon.id,
+        amount_asked: parseInt(moneyAmount),
       })
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create money trade')
-      }
-      return response.json()
     },
     onSuccess: () => {
       toast.success('Money trade created successfully!')
@@ -471,19 +393,10 @@ function TradeDialogs({ pokemon }: { pokemon: PokemonDetails }) {
 
   const createBarterTrade = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/pokemon/${pokemon.id}/trade/barter/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ trade_preferences: tradePreferences }),
+      return ApiService.getInstance().createBarterTrade({
+        pokemonId: pokemon.id,
+        trade_preferences: tradePreferences,
       })
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create barter trade')
-      }
-      return response.json()
     },
     onSuccess: () => {
       toast.success('Barter trade created successfully!')

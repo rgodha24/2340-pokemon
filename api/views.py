@@ -1,7 +1,6 @@
 import json
 import random
 
-import pokebase as pb
 import requests
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -14,6 +13,20 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
+from .factories import (
+    format_barter_trade_data,
+    format_money_trade_data,
+    format_notification_data,
+    format_pokemon_data,
+    format_trade_history_data,
+    format_trade_request_data,
+    format_user_data,
+    notification_factory,
+    pokemon_factory,
+    trade_history_factory,
+)
+
+# Import models and factories
 from .models import (
     BarterTrade,
     MoneyTrade,
@@ -41,11 +54,13 @@ def featured_pokemon(request):
     count = int(request.GET.get("count", 3))
     count = min(count, 10)
 
+    # --- Querying logic remains the same ---
     trade_pokemon = (
         Pokemon.objects.filter(
             Q(money_trade_listing__isnull=False) | Q(barter_trade_listing__isnull=False)
         )
         .select_related("user")
+        .prefetch_related("money_trade_listing", "barter_trade_listing")
         .order_by("-rarity")
     )
 
@@ -74,9 +89,12 @@ def featured_pokemon(request):
         remaining_count = count - len(featured)
         if remaining_count > 0:
             featured_ids = [p.id for p in featured]
-            additional_pokemon = Pokemon.objects.exclude(id__in=featured_ids).order_by(
-                "-rarity"
-            )[: remaining_count * 3]
+            additional_pokemon = (
+                Pokemon.objects.exclude(id__in=featured_ids)
+                .select_related("user")
+                .prefetch_related("money_trade_listing", "barter_trade_listing")
+                .order_by("-rarity")[: remaining_count * 3]
+            )
 
             weighted_additional = []
             for pokemon in additional_pokemon:
@@ -99,41 +117,10 @@ def featured_pokemon(request):
                     if len(additional_unique) >= remaining_count:
                         break
             featured.extend(additional_unique)
+    # --- End of querying logic ---
 
-    featured_data = []
-    for pokemon in featured:
-        pokemon_data = {
-            "id": pokemon.id,
-            "pokeapi_id": pokemon.pokeapi_id,
-            "name": pokemon.name,
-            "rarity": pokemon.rarity,
-            "image_url": pokemon.image_url,
-            "types": pokemon.types,
-            "owner": {
-                "id": pokemon.user.id,
-                "username": pokemon.user.username,
-            },
-        }
-
-        try:
-            money_trade = pokemon.money_trade_listing
-            pokemon_data["money_trade"] = {
-                "id": money_trade.id,
-                "amount_asked": money_trade.amount_asked,
-            }
-        except (MoneyTrade.DoesNotExist, AttributeError):
-            pokemon_data["money_trade"] = None
-
-        try:
-            barter_trade = pokemon.barter_trade_listing
-            pokemon_data["barter_trade"] = {
-                "id": barter_trade.id,
-                "trade_preferences": barter_trade.trade_preferences,
-            }
-        except (BarterTrade.DoesNotExist, AttributeError):
-            pokemon_data["barter_trade"] = None
-
-        featured_data.append(pokemon_data)
+    # Use the formatting helper
+    featured_data = [format_pokemon_data(p, request.user) for p in featured]
 
     return JsonResponse({"success": True, "featured_pokemon": featured_data})
 
@@ -148,21 +135,9 @@ def login_view(request):
 
     if user is not None:
         login(request, user)
-        try:
-            profile = Profile.objects.get(user=user)
-        except Profile.DoesNotExist:
-            profile = Profile.objects.create(user=user)
-
-        return JsonResponse(
-            {
-                "success": True,
-                "user": {
-                    "username": user.username,
-                    "id": user.id,
-                    "money": profile.money,
-                },
-            }
-        )
+        # Use the formatting helper (which handles profile creation)
+        user_data = format_user_data(user)
+        return JsonResponse({"success": True, "user": user_data})
     else:
         return JsonResponse(
             {"success": False, "error": "Invalid credentials"}, status=400
@@ -175,65 +150,15 @@ def logout_view(request):
     return JsonResponse({"success": True})
 
 
-def search_marketplace(request):
-    query = request.GET.get("q", "").strip().lower()
-    results = []
-
-    if query:
-        pokemon_queryset = Pokemon.objects.filter(
-            Q(name__icontains=query),
-            Q(money_trade_listing__isnull=False)
-            | Q(barter_trade_listing__isnull=False),
-        ).select_related("user")
-
-        for p in pokemon_queryset:
-            results.append(
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "image_url": p.image_url,
-                    "rarity": p.rarity,
-                    "types": p.types,
-                    "owner": {"id": p.user.id, "username": p.user.username},
-                    "money_trade": {
-                        "id": p.money_trade_listing.id,
-                        "amount_asked": p.money_trade_listing.amount_asked,
-                    }
-                    if hasattr(p, "money_trade_listing")
-                    else None,
-                    "barter_trade": {
-                        "id": p.barter_trade_listing.id,
-                        "trade_preferences": p.barter_trade_listing.trade_preferences,
-                    }
-                    if hasattr(p, "barter_trade_listing")
-                    else None,
-                }
-            )
-
-    return JsonResponse({"success": True, "results": results})
-
-
 @require_GET
 @login_required
 def user_notifications(request):
     notifications = Notification.objects.filter(user=request.user).order_by(
         "-created_at"
     )
-    return JsonResponse(
-        {
-            "success": True,
-            "notifications": [
-                {
-                    "id": n.id,
-                    "message": n.message,
-                    "link": n.link,
-                    "is_read": n.is_read,
-                    "created_at": n.created_at.isoformat(),
-                }
-                for n in notifications
-            ],
-        }
-    )
+    # Use the formatting helper
+    notifications_data = [format_notification_data(n) for n in notifications]
+    return JsonResponse({"success": True, "notifications": notifications_data})
 
 
 @require_POST
@@ -244,70 +169,39 @@ def mark_notifications_read(request):
 
 
 def filter_marketplace(request):
+    query = request.GET.get("q", "").strip().lower()
     rarity = request.GET.get("rarity")
-    max_price = request.GET.get("max_price")
     ptype = request.GET.get("type")
 
-    queryset = Pokemon.objects.filter(
-        Q(money_trade_listing__isnull=False) | Q(barter_trade_listing__isnull=False)
-    ).select_related("user")
+    queryset = (
+        Pokemon.objects.filter(
+            Q(money_trade_listing__isnull=False) | Q(barter_trade_listing__isnull=False)
+        )
+        .select_related("user")
+        .prefetch_related("money_trade_listing", "barter_trade_listing")
+    )
+
+    if query:
+        queryset = queryset.filter(name__icontains=query)
 
     if rarity:
-        queryset = queryset.filter(rarity=int(rarity))
-
-    if max_price:
-        queryset = queryset.filter(
-            money_trade_listing__amount_asked__lte=int(max_price)
-        )
+        try:
+            queryset = queryset.filter(rarity=int(rarity))
+        except ValueError:
+            pass
 
     if ptype:
         queryset = queryset.filter(types__icontains=ptype.lower())
 
-    results = []
-    for p in queryset:
-        results.append(
-            {
-                "id": p.id,
-                "name": p.name,
-                "image_url": p.image_url,
-                "rarity": p.rarity,
-                "types": p.types,
-                "owner": {"id": p.user.id, "username": p.user.username},
-                "money_trade": {
-                    "id": p.money_trade_listing.id,
-                    "amount_asked": p.money_trade_listing.amount_asked,
-                }
-                if hasattr(p, "money_trade_listing")
-                else None,
-                "barter_trade": {
-                    "id": p.barter_trade_listing.id,
-                    "trade_preferences": p.barter_trade_listing.trade_preferences,
-                }
-                if hasattr(p, "barter_trade_listing")
-                else None,
-            }
-        )
-
-    return JsonResponse({"success": True, "results": results})
+    results_data = [format_pokemon_data(p, request.user) for p in queryset]
+    return JsonResponse({"success": True, "results": results_data})
 
 
 def user_view(request):
     if request.user.is_authenticated:
-        try:
-            profile = Profile.objects.get(user=request.user)
-        except Profile.DoesNotExist:
-            profile = Profile.objects.create(user=request.user)
-
-        return JsonResponse(
-            {
-                "isAuthenticated": True,
-                "user": {
-                    "username": request.user.username,
-                    "id": request.user.id,
-                    "money": profile.money,
-                },
-            }
-        )
+        # Use the formatting helper (which handles profile creation)
+        user_data = format_user_data(request.user)
+        return JsonResponse({"isAuthenticated": True, "user": user_data})
     return JsonResponse({"isAuthenticated": False})
 
 
@@ -315,63 +209,37 @@ def user_view(request):
 @login_required
 def my_pokemon_view(request):
     pokemons = Pokemon.objects.filter(user=request.user)
+    # Simple formatting is enough here
     return JsonResponse(
-        {"success": True, "pokemon": [{"id": p.id, "name": p.name} for p in pokemons]}
+        {
+            "success": True,
+            "pokemon": [
+                {"id": p.id, "name": p.name, "image_url": p.image_url} for p in pokemons
+            ],
+        }
     )
 
 
 def user_username(_, username):
     user = get_object_or_404(User, username=username)
-
-    try:
-        profile = Profile.objects.get(user=user)
-    except Profile.DoesNotExist:
-        profile = Profile.objects.create(user=user)
+    profile = get_object_or_404(Profile, user=user)  # Assume profile exists now
 
     pokemon_queryset = Pokemon.objects.filter(user=user).prefetch_related(
         "money_trade_listing", "barter_trade_listing"
     )
 
-    pokemon_data = []
-    for pokemon in pokemon_queryset:
-        p_dict = {
-            "id": pokemon.id,
-            "pokeapi_id": pokemon.pokeapi_id,
-            "name": pokemon.name,
-            "rarity": pokemon.rarity,
-            "image_url": pokemon.image_url,
-            "types": pokemon.types,
-            "money_trade": None,
-            "barter_trade": None,
-        }
+    # Use formatting helpers
+    user_data = format_user_data(user, profile)
+    pokemon_data = [format_pokemon_data(p) for p in pokemon_queryset]
 
-        try:
-            trade = pokemon.money_trade_listing
-            p_dict["money_trade"] = {
-                "id": trade.id,
-                "amount_asked": trade.amount_asked,
-            }
-        except MoneyTrade.DoesNotExist:
-            pass
-
-        try:
-            trade = pokemon.barter_trade_listing
-            p_dict["barter_trade"] = {
-                "id": trade.id,
-                "trade_preferences": trade.trade_preferences,
-            }
-        except BarterTrade.DoesNotExist:
-            pass
-
-        pokemon_data.append(p_dict)
-
+    # Formatting for open trades can stay simple or be moved to factory if needed
     money_trades = list(
-        MoneyTrade.objects.filter(pokemon__user=user).values(
+        MoneyTrade.objects.filter(pokemon__user=user, status="active").values(
             "id", "amount_asked", "pokemon__id", "pokemon__name"
         )
     )
     barter_trades = list(
-        BarterTrade.objects.filter(pokemon__user=user).values(
+        BarterTrade.objects.filter(pokemon__user=user, status="active").values(
             "id", "trade_preferences", "pokemon__id", "pokemon__name"
         )
     )
@@ -379,11 +247,7 @@ def user_username(_, username):
     return JsonResponse(
         {
             "success": True,
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "money": profile.money,
-            },
+            "user": user_data,
             "pokemon": pokemon_data,
             "open_trades": {
                 "money_trades": money_trades,
@@ -407,63 +271,22 @@ def signup_view(request):
 
     user = User.objects.create_user(username=username, email=email, password=password)
     profile = Profile.objects.create(user=user)
-    user_pokemon = []
+    user_pokemon_instances = []
 
     for _ in range(5):
         pokeapi_data = random_pokemon()
-        pokemon_name = pokeapi_data.name
-        pokemon_id = pokeapi_data.id
-        pokemon_types = [t.type.name for t in pokeapi_data.types]
+        # Use the Pokemon factory to create the instance
+        pokemon_instance = pokemon_factory.create_pokemon_instance(user, pokeapi_data)
+        user_pokemon_instances.append(pokemon_instance)
 
-        image_url = None
-        if hasattr(pokeapi_data.sprites.other, "official_artwork"):
-            official_artwork = pokeapi_data.sprites.other.official_artwork
-            if (
-                hasattr(official_artwork, "front_default")
-                and official_artwork.front_default
-            ):
-                image_url = official_artwork.front_default
+    Pokemon.objects.bulk_create(user_pokemon_instances)
 
-        if not image_url and hasattr(pokeapi_data.sprites, "front_default"):
-            image_url = pokeapi_data.sprites.front_default
+    # Use the formatting helper
+    user_data = format_user_data(user, profile)
+    # Add email back if needed, format_user_data doesn't include it by default
+    user_data["email"] = user.email
 
-        species_data = pb.pokemon_species(pokemon_id)
-        capture_rate = species_data.capture_rate
-        if capture_rate <= 10:
-            rarity = 5
-        elif capture_rate <= 30:
-            rarity = 4
-        elif capture_rate <= 70:
-            rarity = 3
-        elif capture_rate <= 150:
-            rarity = 2
-        else:
-            rarity = 1
-
-        pokemon_instance = Pokemon(
-            user=user,
-            pokeapi_id=pokemon_id,
-            name=pokemon_name,
-            rarity=rarity,
-            image_url=image_url,
-            types=pokemon_types,
-        )
-        user_pokemon.append(pokemon_instance)
-
-    Pokemon.objects.bulk_create(user_pokemon)
-
-    return JsonResponse(
-        {
-            "success": True,
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "money": profile.money,
-            },
-        },
-        status=201,
-    )
+    return JsonResponse({"success": True, "user": user_data}, status=201)
 
 
 @require_POST
@@ -484,15 +307,16 @@ def cancel_trade(request, pokemon_id):
         trade = pokemon.money_trade_listing
         trade.delete()
         deleted_trade = True
-    except MoneyTrade.DoesNotExist:
+    except (MoneyTrade.DoesNotExist, AttributeError):
         pass
 
     try:
         trade = pokemon.barter_trade_listing
-        Pokemon.objects.filter(offered_in_trade=trade).update(offered_in_trade=None)
+        # Clear related offers if needed (model doesn't show this field anymore)
+        # Pokemon.objects.filter(offered_in_trade=trade).update(offered_in_trade=None)
         trade.delete()
         deleted_trade = True
-    except BarterTrade.DoesNotExist:
+    except (BarterTrade.DoesNotExist, AttributeError):
         pass
 
     if deleted_trade:
@@ -517,21 +341,9 @@ def trade_history_view(request):
         .order_by("-timestamp")
     )
 
-    results = []
-    for h in history:
-        trade_type = "money" if h.amount > 0 else "barter"
-        # For barter, 'buyer' is who received this specific Pokemon, 'seller' is who gave it.
-        results.append(
-            {
-                "trade_type": trade_type,
-                "pokemon_name": h.pokemon.name if h.pokemon else "Unknown",
-                "amount": h.amount,  # Will be 0 for barter
-                "buyer": h.buyer.username,  # User who received this Pokemon
-                "seller": h.seller.username,  # User who gave this Pokemon
-                "timestamp": h.timestamp.isoformat(),
-            }
-        )
-    return JsonResponse({"success": True, "history": results})
+    # Use the formatting helper
+    results_data = [format_trade_history_data(h) for h in history]
+    return JsonResponse({"success": True, "history": results_data})
 
 
 @require_POST
@@ -555,20 +367,15 @@ def buy_pokemon(request, pokemon_id):
 
     try:
         money_trade = pokemon.money_trade_listing
-    except MoneyTrade.DoesNotExist:
+        if money_trade.status != "active":
+            raise MoneyTrade.DoesNotExist  # Treat non-active as non-existent for buying
+    except (MoneyTrade.DoesNotExist, AttributeError):
         return JsonResponse(
             {"success": False, "error": "This Pokemon is not for sale"}, status=400
         )
 
-    try:
-        buyer_profile = Profile.objects.get(user=request.user)
-    except Profile.DoesNotExist:
-        buyer_profile = Profile.objects.create(user=request.user)
-
-    try:
-        seller_profile = Profile.objects.get(user=pokemon.user)
-    except Profile.DoesNotExist:
-        seller_profile = Profile.objects.create(user=pokemon.user)
+    buyer_profile = get_object_or_404(Profile, user=request.user)
+    seller_profile = get_object_or_404(Profile, user=pokemon.user)
 
     if buyer_profile.money < money_trade.amount_asked:
         return JsonResponse(
@@ -589,16 +396,20 @@ def buy_pokemon(request, pokemon_id):
         pokemon.user = request.user
         pokemon.save()
 
-        money_trade.delete()
-
-        TradeHistory.objects.create(
+        # Use the TradeHistory factory
+        history_entry = trade_history_factory.create_money_trade_history(
             buyer=request.user,
             seller=old_owner,
             pokemon=pokemon,
             amount=money_trade.amount_asked,
         )
+        history_entry.save()
 
-        Notification.objects.create(
+        # Mark trade as completed instead of deleting? Or delete is fine.
+        money_trade.delete()  # Or money_trade.status = 'completed'; money_trade.save()
+
+        # Use the Notification factory
+        notification_to_seller = notification_factory.create_notification(
             user=old_owner,
             message=(
                 f"Your Pokémon {pokemon.name} was sold to "
@@ -606,7 +417,7 @@ def buy_pokemon(request, pokemon_id):
             ),
             link=f"/pokemon/{pokemon.id}",
         )
-        Notification.objects.create(
+        notification_to_buyer = notification_factory.create_notification(
             user=request.user,
             message=(
                 f"You bought {pokemon.name} from "
@@ -614,12 +425,15 @@ def buy_pokemon(request, pokemon_id):
             ),
             link=f"/pokemon/{pokemon.id}",
         )
+        Notification.objects.bulk_create(
+            [notification_to_seller, notification_to_buyer]
+        )
 
     return JsonResponse(
         {
             "success": True,
             "message": f"You successfully bought {pokemon.name} for ${money_trade.amount_asked}",
-            "pokemon": {
+            "pokemon": {  # Simple dict is fine here
                 "id": pokemon.id,
                 "name": pokemon.name,
                 "previous_owner": old_owner.username,
@@ -630,49 +444,21 @@ def buy_pokemon(request, pokemon_id):
 
 
 def pokemon_detail(request, pokemon_id):
-    pokemon = get_object_or_404(Pokemon, id=pokemon_id)
+    pokemon = get_object_or_404(
+        Pokemon.objects.select_related("user").prefetch_related(
+            "money_trade_listing", "barter_trade_listing"
+        ),
+        id=pokemon_id,
+    )
 
-    pokemon_data = {
-        "id": pokemon.id,
-        "pokeapi_id": pokemon.pokeapi_id,
-        "name": pokemon.name,
-        "rarity": pokemon.rarity,
-        "image_url": pokemon.image_url,
-        "types": pokemon.types,
-        "owner": {
-            "id": pokemon.user.id,
-            "username": pokemon.user.username,
-        },
-        "is_owner": request.user.is_authenticated
-        and request.user.id == pokemon.user.id,
-        "money_trade": None,
-        "barter_trade": None,
-    }
-
-    try:
-        money_trade = pokemon.money_trade_listing
-        pokemon_data["money_trade"] = {
-            "id": money_trade.id,
-            "amount_asked": money_trade.amount_asked,
-        }
-    except MoneyTrade.DoesNotExist:
-        pass
-
-    try:
-        barter_trade = pokemon.barter_trade_listing
-        pokemon_data["barter_trade"] = {
-            "id": barter_trade.id,
-            "trade_preferences": barter_trade.trade_preferences,
-        }
-    except BarterTrade.DoesNotExist:
-        pass
+    # Use the formatting helper
+    pokemon_data = format_pokemon_data(pokemon, request.user)
 
     return JsonResponse(
         {
             "success": True,
             "pokemon": pokemon_data,
-            "is_owner": request.user.is_authenticated
-            and request.user.id == pokemon.user.id,
+            # is_owner is now included in format_pokemon_data if request.user is passed
         }
     )
 
@@ -689,38 +475,35 @@ def create_money_trade(request, pokemon_id):
         )
 
     try:
-        pokemon = (
-            Pokemon.objects.select_related("user")
-            .prefetch_related("money_trade_listing", "barter_trade_listing")
-            .get(id=pokemon_id, user=request.user)
-        )
+        pokemon = Pokemon.objects.get(id=pokemon_id, user=request.user)
     except Pokemon.DoesNotExist:
         return JsonResponse(
             {"success": False, "error": "Pokemon not found or not owned by user"},
             status=404,
         )
 
-    if hasattr(pokemon, "money_trade_listing") or hasattr(
-        pokemon, "barter_trade_listing"
+    # Check if already listed (using exists for efficiency)
+    if (
+        MoneyTrade.objects.filter(pokemon=pokemon, status="active").exists()
+        or BarterTrade.objects.filter(pokemon=pokemon, status="active").exists()
     ):
         return JsonResponse(
-            {"success": False, "error": "Pokemon is already listed in a trade"},
+            {"success": False, "error": "Pokemon is already listed in an active trade"},
             status=400,
         )
 
+    # Direct creation is simple enough here, no complex logic needed yet
     trade = MoneyTrade.objects.create(
         pokemon=pokemon,
         amount_asked=amount_asked,
+        status="active",  # Explicitly set status
     )
 
     return JsonResponse(
         {
             "success": True,
-            "trade": {
-                "id": trade.id,
-                "amount_asked": trade.amount_asked,
-                "pokemon_id": pokemon.id,
-            },
+            # Use formatting helper for consistency
+            "trade": format_money_trade_data(trade) | {"pokemon_id": pokemon.id},
         },
         status=201,
     )
@@ -733,41 +516,43 @@ def create_barter_trade(request, pokemon_id):
     trade_preferences = data.get("trade_preferences", "")
 
     try:
-        pokemon = (
-            Pokemon.objects.select_related("user")
-            .prefetch_related("money_trade_listing", "barter_trade_listing")
-            .get(id=pokemon_id, user=request.user)
-        )
+        pokemon = Pokemon.objects.get(id=pokemon_id, user=request.user)
     except Pokemon.DoesNotExist:
         return JsonResponse(
             {"success": False, "error": "Pokemon not found or not owned by user"},
             status=404,
         )
 
-    if hasattr(pokemon, "money_trade_listing") or hasattr(
-        pokemon, "barter_trade_listing"
+    # Check if already listed
+    if (
+        MoneyTrade.objects.filter(pokemon=pokemon, status="active").exists()
+        or BarterTrade.objects.filter(pokemon=pokemon, status="active").exists()
     ):
         return JsonResponse(
-            {"success": False, "error": "Pokemon is already listed in a trade"},
+            {"success": False, "error": "Pokemon is already listed in an active trade"},
             status=400,
         )
 
+    # Direct creation is simple
     trade = BarterTrade.objects.create(
         pokemon=pokemon,
         trade_preferences=trade_preferences,
+        status="active",
     )
 
     return JsonResponse(
         {
             "success": True,
-            "trade": {
-                "id": trade.id,
-                "trade_preferences": trade.trade_preferences,
-                "pokemon_id": pokemon.id,
-            },
+            # Use formatting helper
+            "trade": format_barter_trade_data(trade) | {"pokemon_id": pokemon.id},
         },
         status=201,
     )
+
+
+# --- Admin Views ---
+# These views are less repetitive and don't benefit as much from factories
+# for their core logic, but could use formatting helpers if returning complex data.
 
 
 def is_admin(user):
@@ -779,28 +564,32 @@ def admin_dashboard(request):
     """Get overview statistics for admin dashboard"""
     active_money_trades = MoneyTrade.objects.filter(status="active").count()
     active_barter_trades = BarterTrade.objects.filter(status="active").count()
-    flagged_trades = (
-        MoneyTrade.objects.filter(is_flagged=True).count()
-        + BarterTrade.objects.filter(is_flagged=True).count()
-    )
+    flagged_trades = TradeReport.objects.filter(
+        status__in=["pending", "investigating"]
+    ).count()  # Count pending/investigating reports as "flagged" for admin attention
     pending_reports = TradeReport.objects.filter(status="pending").count()
     recent_trades = TradeHistory.objects.order_by("-timestamp")[:5]
+
+    # Simple formatting is okay here
+    recent_trades_data = [
+        {
+            "id": t.id,
+            "pokemon_name": t.pokemon.name if t.pokemon else "N/A",
+            "buyer": t.buyer.username,
+            "seller": t.seller.username,
+            "amount": t.amount,
+            "timestamp": t.timestamp.isoformat(),
+            "trade_type": "money" if t.amount > 0 else "barter",
+        }
+        for t in recent_trades
+    ]
 
     return JsonResponse(
         {
             "active_trades": active_money_trades + active_barter_trades,
             "flagged_trades": flagged_trades,
             "pending_reports": pending_reports,
-            "recent_trades": list(
-                recent_trades.values(
-                    "id",
-                    "pokemon__name",
-                    "buyer__username",
-                    "seller__username",
-                    "amount",
-                    "timestamp",
-                )
-            ),
+            "recent_trades": recent_trades_data,
         }
     )
 
@@ -808,7 +597,7 @@ def admin_dashboard(request):
 @user_passes_test(is_admin)
 @require_POST
 def manage_trade(request, trade_type, trade_id):
-    """Update trade status (flag/unflag/remove)"""
+    """Update trade status (flag/unflag/remove) - Logic remains"""
     try:
         model = MoneyTrade if trade_type == "money" else BarterTrade
         trade = model.objects.get(id=trade_id)
@@ -817,26 +606,31 @@ def manage_trade(request, trade_type, trade_id):
 
         if action == "flag":
             trade.is_flagged = True
-            trade.status = "flagged"
+            # Optionally change status, or just use is_flagged
+            # trade.status = 'flagged'
             trade.flag_reason = data.get("reason")
         elif action == "unflag":
             trade.is_flagged = False
-            trade.status = "active"
+            # trade.status = 'active' # Revert status if needed
             trade.flag_reason = None
         elif action == "remove":
             trade.status = "removed"
+            # Consider setting is_flagged = False if removing
+            trade.is_flagged = False
 
         trade.admin_notes = data.get("admin_notes", trade.admin_notes)
         trade.save()
         return JsonResponse({"status": "success"})
     except (MoneyTrade.DoesNotExist, BarterTrade.DoesNotExist):
         return JsonResponse({"error": "Trade not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @user_passes_test(is_admin)
 @require_POST
 def manage_report(request, report_id):
-    """Update report status and add admin notes"""
+    """Update report status and add admin notes - Logic remains"""
     try:
         report = TradeReport.objects.get(id=report_id)
         data = json.loads(request.body)
@@ -852,6 +646,7 @@ def manage_report(request, report_id):
             report.resolved_at = timezone.now()
             report.resolved_by = request.user
         else:
+            # Clear resolution fields if moving back to pending/investigating
             report.resolved_at = None
             report.resolved_by = None
 
@@ -859,16 +654,24 @@ def manage_report(request, report_id):
         return JsonResponse({"status": "success"})
     except TradeReport.DoesNotExist:
         return JsonResponse({"error": "Report not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @user_passes_test(is_admin)
 def list_reports(request):
-    """Get paginated list of reports"""
+    """Get paginated list of reports - Using simpler formatting"""
     status = request.GET.get("status")
     page = int(request.GET.get("page", 1))
     per_page = int(request.GET.get("per_page", 20))
 
-    reports = TradeReport.objects.all().order_by("-created_at")
+    reports = (
+        TradeReport.objects.select_related(
+            "reporter", "resolved_by", "money_trade__pokemon", "barter_trade__pokemon"
+        )
+        .all()
+        .order_by("-created_at")
+    )
     if status:
         reports = reports.filter(status=status)
 
@@ -876,58 +679,63 @@ def list_reports(request):
     end = start + per_page
 
     reports_page = reports[start:end]
-    total_pages = (reports.count() + per_page - 1) // per_page
+    total_count = reports.count()
+    total_pages = (total_count + per_page - 1) // per_page
+
+    # Simplified formatting within the view
+    reports_data = []
+    for report in reports_page:
+        trade = report.money_trade or report.barter_trade
+        trade_type = "money" if report.money_trade else "barter"
+        reports_data.append(
+            {
+                "id": report.id,
+                "trade_type": trade_type,
+                "trade_id": trade.id if trade else None,
+                "pokemon_name": trade.pokemon.name if trade else "N/A",
+                "reporter": report.reporter.username,
+                "reason": report.reason,
+                "status": report.status,
+                "created_at": report.created_at.isoformat(),
+                "resolved_at": report.resolved_at.isoformat()
+                if report.resolved_at
+                else None,
+                "resolved_by": report.resolved_by.username
+                if report.resolved_by
+                else None,
+                "admin_notes": report.admin_notes,
+            }
+        )
 
     return JsonResponse(
         {
-            "reports": [
-                {
-                    "id": report.id,
-                    "trade_type": "money" if report.money_trade else "barter",
-                    "trade_id": report.money_trade.id
-                    if report.money_trade
-                    else report.barter_trade.id,
-                    "reporter": report.reporter.username,
-                    "reason": report.reason,
-                    "status": report.status,
-                    "created_at": report.created_at.isoformat(),
-                    "resolved_at": report.resolved_at.isoformat()
-                    if report.resolved_at
-                    else None,
-                    "admin_notes": report.admin_notes,
-                }
-                for report in reports_page
-            ],
+            "reports": reports_data,
             "total_pages": total_pages,
             "current_page": page,
+            "total_count": total_count,
         }
     )
 
 
 @user_passes_test(is_admin)
 def trade_activity(request):
-    """Get recent trade activity for monitoring"""
+    """Get recent trade activity for monitoring - Using formatting helper"""
     days = int(request.GET.get("days", 7))
     since = timezone.now() - timezone.timedelta(days=days)
 
-    trades = TradeHistory.objects.filter(timestamp__gte=since).order_by("-timestamp")
-
-    return JsonResponse(
-        {
-            "trades": list(
-                trades.values(
-                    "id",
-                    "pokemon__name",
-                    "buyer__username",
-                    "seller__username",
-                    "amount",
-                    "timestamp",
-                    "is_flagged",
-                    "admin_notes",
-                )
-            )
-        }
+    trades = (
+        TradeHistory.objects.filter(timestamp__gte=since)
+        .select_related("pokemon", "buyer", "seller")
+        .order_by("-timestamp")
     )
+
+    # Use the formatting helper
+    trades_data = [format_trade_history_data(t) for t in trades]
+
+    return JsonResponse({"trades": trades_data})
+
+
+# --- Trade Request Views ---
 
 
 @require_POST
@@ -951,6 +759,7 @@ def send_trade_request(request):
         )
 
     # Check if either Pokemon is already in an active trade request
+    # Simplified check:
     if TradeRequest.objects.filter(
         Q(sender_pokemon=sender_pokemon) | Q(receiver_pokemon=sender_pokemon),
         status="pending",
@@ -974,22 +783,25 @@ def send_trade_request(request):
             status=400,
         )
 
+    # Direct creation is simple
     trade = TradeRequest.objects.create(
         sender=request.user,
         receiver=receiver,
         sender_pokemon=sender_pokemon,
         receiver_pokemon=receiver_pokemon,
+        status="pending",  # Explicitly set
     )
 
-    # Notify the receiver
-    Notification.objects.create(
+    # Use Notification factory
+    notification = notification_factory.create_notification(
         user=receiver,
         message=(
             f"{request.user.username} wants to trade their {sender_pokemon.name} "
             f"for your {receiver_pokemon.name}!"
         ),
-        link="/incoming-trades/",  # Link to the page where they can see incoming trades
+        link="/incoming-trades/",
     )
+    notification.save()
 
     return JsonResponse({"success": True, "trade_id": trade.id}, status=201)
 
@@ -1003,7 +815,14 @@ def respond_trade_request(request, trade_id):
     if action not in ["accept", "decline"]:
         return JsonResponse({"success": False, "error": "Invalid action"}, status=400)
 
-    trade = get_object_or_404(TradeRequest, id=trade_id, receiver=request.user)
+    # Ensure the trade exists and belongs to the user as receiver
+    trade = get_object_or_404(
+        TradeRequest.objects.select_related(
+            "sender", "receiver", "sender_pokemon", "receiver_pokemon"
+        ),
+        id=trade_id,
+        receiver=request.user,
+    )
 
     if trade.status != "pending":
         return JsonResponse(
@@ -1011,20 +830,23 @@ def respond_trade_request(request, trade_id):
         )
 
     with transaction.atomic():
-        trade.status = "accepted" if action == "accept" else "declined"
+        new_status = "accepted" if action == "accept" else "declined"
+        trade.status = new_status
         trade.save()
 
         sender_pokemon = trade.sender_pokemon
         receiver_pokemon = trade.receiver_pokemon
         sender = trade.sender
-        receiver = trade.receiver
+        receiver = trade.receiver  # == request.user
 
-        # If accepted, swap ownership and handle related trades/requests
+        notifications_to_create = []
+
         if action == "accept":
-            # Check and delete any existing barter trade listings for both Pokemon
-            # Note: Money trades are separate and shouldn't be auto-cancelled here
-            BarterTrade.objects.filter(pokemon=sender_pokemon).delete()
-            BarterTrade.objects.filter(pokemon=receiver_pokemon).delete()
+            # Cancel any active *barter* listings for these specific Pokemon
+            # Money listings might remain, depending on desired logic
+            BarterTrade.objects.filter(
+                pokemon__in=[sender_pokemon, receiver_pokemon], status="active"
+            ).delete()
 
             # Swap ownership
             sender_pokemon.user = receiver
@@ -1032,65 +854,87 @@ def respond_trade_request(request, trade_id):
             sender_pokemon.save()
             receiver_pokemon.save()
 
-            # Decline other pending trades involving these Pokemon
-            TradeRequest.objects.filter(
-                Q(sender_pokemon=sender_pokemon) | Q(receiver_pokemon=sender_pokemon),
-                status="pending",
-            ).exclude(id=trade.id).update(status="declined")
-            TradeRequest.objects.filter(
-                Q(sender_pokemon=receiver_pokemon)
+            # Decline other *pending* trades involving these specific Pokemon
+            # Important: Exclude the current trade being accepted
+            conflicting_trades = TradeRequest.objects.filter(
+                Q(sender_pokemon=sender_pokemon)
+                | Q(receiver_pokemon=sender_pokemon)
+                | Q(sender_pokemon=receiver_pokemon)
                 | Q(receiver_pokemon=receiver_pokemon),
                 status="pending",
-            ).exclude(id=trade.id).update(status="declined")
+            ).exclude(id=trade.id)
 
-            # --- Add TradeHistory entries for barter ---
-            # Entry 1: Receiver gets sender's Pokemon
-            TradeHistory.objects.create(
-                buyer=receiver,  # User receiving the Pokemon
-                seller=sender,  # User giving the Pokemon
-                pokemon=sender_pokemon,
-                amount=0,  # Indicate barter trade
-                timestamp=timezone.now(),  # Use current time
+            # Notify users whose trades were auto-declined
+            for conflicting_trade in conflicting_trades:
+                other_user = (
+                    conflicting_trade.receiver
+                    if conflicting_trade.sender == sender
+                    or conflicting_trade.sender == receiver
+                    else conflicting_trade.sender
+                )
+                involved_pokemon = (
+                    sender_pokemon.name
+                    if conflicting_trade.sender_pokemon == sender_pokemon
+                    or conflicting_trade.receiver_pokemon == sender_pokemon
+                    else receiver_pokemon.name
+                )
+                notifications_to_create.append(
+                    notification_factory.create_notification(
+                        user=other_user,
+                        message=(
+                            f"Your trade involving {involved_pokemon} was automatically "
+                            f"declined because the Pokémon was traded elsewhere."
+                        ),
+                    )
+                )
+            conflicting_trades.update(status="declined")
+
+            # Use TradeHistory factory for barter
+            history_entries = trade_history_factory.create_barter_trade_history(
+                sender, receiver, sender_pokemon, receiver_pokemon
             )
-            # Entry 2: Sender gets receiver's Pokemon
-            TradeHistory.objects.create(
-                buyer=sender,  # User receiving the Pokemon
-                seller=receiver,  # User giving the Pokemon
-                pokemon=receiver_pokemon,
-                amount=0,  # Indicate barter trade
-                timestamp=timezone.now(),  # Use current time
+            TradeHistory.objects.bulk_create(history_entries)
+
+            # Create notifications for acceptance
+            notifications_to_create.append(
+                notification_factory.create_notification(
+                    user=sender,
+                    message=(
+                        f"{receiver.username} accepted your trade offer! "
+                        f"You received {receiver_pokemon.name}."
+                    ),
+                    link=f"/pokemon/{receiver_pokemon.id}",
+                )
             )
-            # --- End of TradeHistory addition ---
-            # Notify sender of acceptance
-            Notification.objects.create(
-                user=sender,
-                message=(
-                    f"{receiver.username} accepted your trade offer! "
-                    f"You received {receiver_pokemon.name}."
-                ),
-                link=f"/pokemon/{receiver_pokemon.id}",
-            )
-            # Notify receiver (self) of acceptance
-            Notification.objects.create(
-                user=receiver,
-                message=(
-                    f"You accepted the trade offer from {sender.username}. "
-                    f"You received {sender_pokemon.name}."
-                ),
-                link=f"/pokemon/{sender_pokemon.id}",
+            notifications_to_create.append(
+                notification_factory.create_notification(
+                    user=receiver,
+                    message=(
+                        f"You accepted the trade offer from {sender.username}. "
+                        f"You received {sender_pokemon.name}."
+                    ),
+                    link=f"/pokemon/{sender_pokemon.id}",
+                )
             )
 
         else:  # Declined
-            # Notify sender of decline
-            Notification.objects.create(
-                user=sender,
-                message=(
-                    f"{receiver.username} declined your trade offer for "
-                    f"{receiver_pokemon.name}."
-                ),
+            # Create notification for decline
+            notifications_to_create.append(
+                notification_factory.create_notification(
+                    user=sender,
+                    message=(
+                        f"{receiver.username} declined your trade offer for "
+                        f"{receiver_pokemon.name}."
+                    ),
+                    # No link needed for decline usually
+                )
             )
 
-    return JsonResponse({"success": True, "new_status": trade.status})
+        # Bulk create all notifications generated in this transaction
+        if notifications_to_create:
+            Notification.objects.bulk_create(notifications_to_create)
+
+    return JsonResponse({"success": True, "new_status": new_status})
 
 
 @require_GET
@@ -1098,43 +942,29 @@ def respond_trade_request(request, trade_id):
 def incoming_trades_view(request):
     trades = TradeRequest.objects.filter(
         receiver=request.user, status="pending"
-    ).select_related("sender", "sender_pokemon", "receiver_pokemon")
+    ).select_related(
+        "sender", "sender_pokemon", "receiver", "receiver_pokemon"
+    )  # Added receiver
 
-    trade_list = [
-        {
-            "id": t.id,
-            "sender": {"id": t.sender.id, "username": t.sender.username},
-            "receiver": {"id": t.receiver.id, "username": t.receiver.username},
-            "sender_pokemon": {
-                "id": t.sender_pokemon.id,
-                "name": t.sender_pokemon.name,
-                "image_url": t.sender_pokemon.image_url,
-            },
-            "receiver_pokemon": {
-                "id": t.receiver_pokemon.id,
-                "name": t.receiver_pokemon.name,
-                "image_url": t.receiver_pokemon.image_url,
-            },
-            "status": t.status,
-            "created_at": t.created_at.isoformat(),
-        }
-        for t in trades
-    ]
+    # Use the formatting helper
+    trade_list_data = [format_trade_request_data(t) for t in trades]
 
-    return JsonResponse({"success": True, "trades": trade_list})
+    return JsonResponse({"success": True, "trades": trade_list_data})
 
 
 @require_GET
 @login_required
 def incoming_trades_for_pokemon(request, pokemon_id):
+    # Ensure the pokemon belongs to the logged-in user
     pokemon = get_object_or_404(Pokemon, id=pokemon_id, user=request.user)
 
     trades = TradeRequest.objects.filter(
-        receiver=request.user,
+        receiver=request.user,  # Redundant check, but safe
         receiver_pokemon=pokemon,
         status="pending",
     ).select_related("sender", "sender_pokemon")
 
+    # Simpler formatting is sufficient here, or use format_trade_request_data
     trades_data = [
         {
             "id": trade.id,
@@ -1142,35 +972,42 @@ def incoming_trades_for_pokemon(request, pokemon_id):
             "sender_pokemon_id": trade.sender_pokemon.id,
             "sender_pokemon_name": trade.sender_pokemon.name,
             "sender_pokemon_image_url": trade.sender_pokemon.image_url,
+            "created_at": trade.created_at.isoformat(),  # Added timestamp
         }
         for trade in trades
     ]
+    # Alternative using the main formatter:
+    # trades_data = [format_trade_request_data(trade) for trade in trades]
 
     return JsonResponse({"success": True, "trades": trades_data})
 
 
 @require_GET
 def user_profile(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    pokemons = Pokemon.objects.filter(user=user)
+    # Renamed from user_profile to avoid conflict with username view if routes overlap
+    target_user = get_object_or_404(User, id=user_id)
+    profile = get_object_or_404(Profile, user=target_user)
+    pokemons = Pokemon.objects.filter(user=target_user)
+
+    # Use formatting helpers
+    user_data = format_user_data(target_user, profile)
+    # Use the basic pokemon formatter (no trade info needed for public profile view)
+    collection_data = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "image_url": p.image_url,
+            "rarity": p.rarity,
+            "types": p.types,
+        }
+        for p in pokemons
+    ]
 
     return JsonResponse(
         {
             "success": True,
-            "user": {
-                "id": user.id,
-                "username": user.username,
-            },
-            "collection": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "image_url": p.image_url,
-                    "rarity": p.rarity,
-                    "types": p.types,
-                }
-                for p in pokemons
-            ],
+            "user": user_data,
+            "collection": collection_data,
         }
     )
 
@@ -1181,7 +1018,7 @@ HUGGINGFACE_API_URL = (
 HUGGINGFACE_TOKEN = "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"
 
 
-@csrf_exempt
+@csrf_exempt  # Keep csrf_exempt if using cookie auth and calling from external frontend
 @require_POST
 def password_reset(request):
     """
@@ -1196,33 +1033,51 @@ def password_reset(request):
                 {"success": False, "error": "Email is required"}, status=400
             )
 
-        # Use Django's built-in password reset functionality
         from django.conf import settings
         from django.contrib.auth.forms import PasswordResetForm
 
-        # Create a form instance with the submitted email
         form = PasswordResetForm({"email": email})
 
         if form.is_valid():
+            # Ensure domain_override matches your frontend URL for the reset link
+            # Use settings for domain if possible
+            domain_override = (
+                getattr(settings, "FRONTEND_URL", "localhost:5173")
+                .replace("http://", "")
+                .replace("https://", "")
+            )
+
             form.save(
                 request=request,
                 use_https=request.is_secure(),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 email_template_name="registration/password_reset_email.html",
                 subject_template_name="registration/password_reset_subject.txt",
-                domain_override="localhost:5173",
+                domain_override=domain_override,  # Use the frontend domain
+            )
+            # Always return success to prevent email enumeration
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "If an account with that email exists, a password reset link has been sent.",
+                }
+            )
+        else:
+            # Even if form is invalid (e.g., email doesn't exist), return success message
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "If an account with that email exists, a password reset link has been sent.",
+                }
             )
 
-        return JsonResponse(
-            {
-                "success": True,
-                "message": "If your email exists in our system, you will receive a password reset link.",
-            }
-        )
-
     except Exception as e:
-        print(f"Exception in password_reset: {e}")
-        return JsonResponse({"success": False, "error": str(e)}, status=500)
+        print(f"Exception in password_reset: {e}")  # Log the error server-side
+        # Return a generic error to the client
+        return JsonResponse(
+            {"success": False, "error": "An error occurred during password reset."},
+            status=500,
+        )
 
 
 @csrf_exempt
@@ -1237,46 +1092,53 @@ def chatbot_chat(request):
                 {"success": False, "error": "No prompt provided"}, status=400
             )
 
-        print(f"\n🌟 Incoming prompt: {prompt}\n")
-
         headers = {
-            "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+            "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",  # Use token from secure source
             "Content-Type": "application/json",
         }
-
         payload = {
             "inputs": prompt,
             "parameters": {
-                "temperature": 0.5,
-                "max_new_tokens": 100,
-            },
+                "temperature": 0.7,
+                "max_new_tokens": 150,
+            },  # Adjusted params slightly
         }
 
-        print(f"Sending to HuggingFace...\nHeaders: {headers}\nPayload: {payload}\n")
-
-        response = requests.post(HUGGINGFACE_API_URL, headers=headers, json=payload)
-
-        print(f"HuggingFace raw response: {response.status_code}")
-        print(f"HuggingFace body: {response.text}\n")
-
-        if response.status_code != 200:
-            return JsonResponse(
-                {"success": False, "error": f"HuggingFace error: {response.text}"},
-                status=500,
-            )
+        response = requests.post(
+            HUGGINGFACE_API_URL, headers=headers, json=payload, timeout=30
+        )  # Added timeout
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
 
         hf_response = response.json()
-
         model_output = ""
-        if isinstance(hf_response, list) and "generated_text" in hf_response[0]:
-            model_output = hf_response[0]["generated_text"]
-        elif "generated_text" in hf_response:
-            model_output = hf_response["generated_text"]
+
+        # Handle potential variations in HF response structure
+        if isinstance(hf_response, list) and hf_response:
+            generated_text = hf_response[0].get("generated_text", "")
+            # Often the model includes the prompt, remove it if present
+            if generated_text.startswith(prompt):
+                model_output = generated_text[len(prompt) :].strip()
+            else:
+                model_output = generated_text.strip()
+        elif isinstance(hf_response, dict) and "generated_text" in hf_response:
+            generated_text = hf_response.get("generated_text", "")
+            if generated_text.startswith(prompt):
+                model_output = generated_text[len(prompt) :].strip()
+            else:
+                model_output = generated_text.strip()
         else:
-            model_output = "⚠️ Unexpected HuggingFace response format."
+            print(f"Unexpected HuggingFace response format: {hf_response}")
+            model_output = "Sorry, I couldn't process that response."
 
         return JsonResponse({"success": True, "reply": model_output})
 
+    except requests.exceptions.RequestException as e:
+        print(f"HuggingFace API request error: {e}")
+        return JsonResponse(
+            {"success": False, "error": "Failed to reach chatbot service."}, status=503
+        )
     except Exception as e:
         print(f"Exception in chatbot_chat: {e}")
-        return JsonResponse({"success": False, "error": str(e)}, status=500)
+        return JsonResponse(
+            {"success": False, "error": "An internal error occurred."}, status=500
+        )

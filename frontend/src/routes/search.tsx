@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { zodValidator } from '@tanstack/zod-adapter'
 import { z } from 'zod'
 import { useQuery } from '@tanstack/react-query'
+import { ApiService } from '@/lib/api'
 
 const searchSchema = z.object({
   q: z.string().optional(),
@@ -23,13 +24,7 @@ export default function SearchMarketplace() {
   const { data, isLoading } = useQuery({
     queryKey: ['searchMarket', search.q, search.rarity, search.type],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      if (search.q) params.append('q', search.q)
-      if (search.rarity) params.append('rarity', search.rarity)
-      if (search.type) params.append('type', search.type)
-
-      const res = await fetch(`/api/marketplace/filter/?${params.toString()}`)
-      return res.json()
+      return ApiService.getInstance().filterMarketplace(search)
     },
   })
 

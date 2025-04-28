@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { useUser } from '@/lib/auth'
 import { useQuery } from '@tanstack/react-query'
 import type { FeaturedPokemonResponse } from '@/lib/types'
+import { ApiService } from '@/lib/api'
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -26,11 +27,7 @@ function HomePage() {
     useQuery<FeaturedPokemonResponse>({
       queryKey: ['featuredPokemon'],
       queryFn: async () => {
-        const response = await fetch('/api/featured-pokemon/')
-        if (!response.ok) {
-          throw new Error('Failed to fetch featured Pokémon')
-        }
-        return response.json()
+        return ApiService.getInstance().getFeaturedPokemon()
       },
     })
 

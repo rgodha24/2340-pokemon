@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { ApiService } from '@/lib/api'
 
 export const Route = createFileRoute('/resetPassword')({
   component: ResetPassword,
@@ -26,17 +27,12 @@ export default function ResetPassword() {
     e.preventDefault()
     setLoading(true)
 
-    const res = await fetch('/api/password-reset/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
-
-    const data = await res.json()
+    try {
+      await ApiService.getInstance().requestPasswordReset(email)
+    } catch (error) {
+      toast.error('Something went wrong. Please try again.')
+    }
     setLoading(false)
-
-    if (res.ok) toast.success('Password reset link sent!')
-    else toast.error(data.error || 'Failed to send email')
   }
 
   return (

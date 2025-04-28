@@ -1,16 +1,16 @@
+import { ApiService } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 
 export default function TradeHistory() {
   const { data, isLoading } = useQuery({
     queryKey: ['tradeHistory'],
     queryFn: async () => {
-      const res = await fetch('/api/marketplace/history/')
-      return res.json()
+      return ApiService.getInstance().getTradeHistory()
     },
   })
 
   if (isLoading) return <p>Loading history...</p>
-  if (!data?.success) return <p>{data?.error || 'Failed to load history'}</p>
+  if (!data?.success) return <p>Failed to load history</p>
 
   return (
     <div className="p-6">

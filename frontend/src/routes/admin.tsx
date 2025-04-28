@@ -1,7 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUser } from '@/lib/auth'
@@ -18,7 +24,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { format } from 'date-fns'
-import type { DashboardData, Report, Trade, User } from '@/lib/types'
+import type { DashboardData, Report, Trade } from '@/lib/types'
+import { ApiService } from '@/lib/api'
 
 export const Route = createFileRoute('/admin')({
   component: AdminDashboard,
@@ -40,54 +47,84 @@ function AdminDashboard() {
 
   const { data: dashboardData } = useQuery<DashboardData>({
     queryKey: ['adminDashboard'],
-    queryFn: () => fetch('/api/admin/dashboard/').then(res => res.json())
+    queryFn: () => ApiService.getInstance().getAdminDashboard(),
   })
 
-  const { data: reports } = useQuery<{ reports: Report[], total_pages: number, current_page: number }>({
+  const { data: reports } = useQuery<{
+    reports: Report[]
+    total_pages: number
+    current_page: number
+  }>({
     queryKey: ['adminReports', reportPage, reportFilter],
-    queryFn: () => fetch(`/api/admin/reports/?page=${reportPage}&status=${reportFilter}`).then(res => res.json())
+    queryFn: () =>
+      ApiService.getInstance().getAdminReports(reportPage, reportFilter),
   })
 
   const { data: activity } = useQuery<{ trades: Trade[] }>({
     queryKey: ['adminActivity'],
-    queryFn: () => fetch('/api/admin/activity/?days=7').then(res => res.json())
+    queryFn: () => ApiService.getInstance().getAdminActivity(7),
   })
 
   const manageTrade = useMutation({
-    mutationFn: ({ type, id, action, reason }: { type: string, id: number, action: string, reason?: string }) =>
-      fetch(`/api/admin/trade/${type}/${id}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, reason })
-      }).then(res => res.json()),
+    mutationFn: ({
+      type,
+      id,
+      action,
+      reason,
+    }: {
+      type: string
+      id: number
+      action: string
+      reason?: string
+    }) =>
+      ApiService.getInstance().manageTrade({
+        type: type as any,
+        id,
+        action: action as any,
+        reason,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminDashboard'] })
       queryClient.invalidateQueries({ queryKey: ['adminActivity'] })
-    }
+    },
   })
 
   const manageReport = useMutation({
-    mutationFn: ({ id, status, notes }: { id: number, status: Report['status'], notes?: string }) =>
-      fetch(`/api/admin/report/${id}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, admin_notes: notes })
-      }).then(res => res.json()),
+    mutationFn: ({
+      id,
+      status,
+      notes,
+    }: {
+      id: number
+      status: Report['status']
+      notes?: string
+    }) =>
+      ApiService.getInstance().manageReport({
+        id,
+        status: status as any,
+        notes,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminReports'] })
-    }
+    },
   })
 
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <Badge variant={dashboardData?.pending_reports ? "destructive" : "secondary"}>
+        <Badge
+          variant={dashboardData?.pending_reports ? 'destructive' : 'secondary'}
+        >
           {dashboardData?.pending_reports || 0} Pending Reports
         </Badge>
       </div>
-      
-      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
+
+      <Tabs
+        value={selectedTab}
+        onValueChange={setSelectedTab}
+        className="space-y-4"
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -102,27 +139,35 @@ function AdminDashboard() {
                 <CardDescription>Currently active listings</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{dashboardData?.active_trades || 0}</p>
+                <p className="text-3xl font-bold">
+                  {dashboardData?.active_trades || 0}
+                </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Flagged Trades</CardTitle>
-                <CardDescription>Trades marked as inappropriate</CardDescription>
+                <CardDescription>
+                  Trades marked as inappropriate
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-red-500">{dashboardData?.flagged_trades || 0}</p>
+                <p className="text-3xl font-bold text-red-500">
+                  {dashboardData?.flagged_trades || 0}
+                </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Pending Reports</CardTitle>
                 <CardDescription>Reports awaiting review</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-yellow-500">{dashboardData?.pending_reports || 0}</p>
+                <p className="text-3xl font-bold text-yellow-500">
+                  {dashboardData?.pending_reports || 0}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -130,7 +175,9 @@ function AdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest trades in the marketplace</CardDescription>
+              <CardDescription>
+                Latest trades in the marketplace
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -146,11 +193,15 @@ function AdminDashboard() {
                 <TableBody>
                   {dashboardData?.recent_trades?.map((trade) => (
                     <TableRow key={trade.id}>
-                      <TableCell className="font-medium">{trade.pokemon__name}</TableCell>
+                      <TableCell className="font-medium">
+                        {trade.pokemon__name}
+                      </TableCell>
                       <TableCell>{trade.buyer__username}</TableCell>
                       <TableCell>{trade.seller__username}</TableCell>
                       <TableCell>${trade.amount}</TableCell>
-                      <TableCell>{format(new Date(trade.timestamp), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>
+                        {format(new Date(trade.timestamp), 'MMM d, yyyy')}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -163,19 +214,21 @@ function AdminDashboard() {
           <div className="flex justify-between items-center mb-4">
             <div className="flex gap-2">
               <Button
-                variant={reportFilter === '' ? "default" : "outline"}
+                variant={reportFilter === '' ? 'default' : 'outline'}
                 onClick={() => setReportFilter('')}
               >
                 All
               </Button>
               <Button
-                variant={reportFilter === 'pending' ? "default" : "outline"}
+                variant={reportFilter === 'pending' ? 'default' : 'outline'}
                 onClick={() => setReportFilter('pending')}
               >
                 Pending
               </Button>
               <Button
-                variant={reportFilter === 'investigating' ? "default" : "outline"}
+                variant={
+                  reportFilter === 'investigating' ? 'default' : 'outline'
+                }
                 onClick={() => setReportFilter('investigating')}
               >
                 Investigating
@@ -184,7 +237,7 @@ function AdminDashboard() {
             <div className="flex gap-2 items-center">
               <Button
                 variant="outline"
-                onClick={() => setReportPage(p => Math.max(1, p - 1))}
+                onClick={() => setReportPage((p) => Math.max(1, p - 1))}
                 disabled={reportPage === 1}
               >
                 Previous
@@ -192,8 +245,10 @@ function AdminDashboard() {
               <span>Page {reportPage}</span>
               <Button
                 variant="outline"
-                onClick={() => setReportPage(p => p + 1)}
-                disabled={!reports?.reports?.length || reports?.reports?.length < 20}
+                onClick={() => setReportPage((p) => p + 1)}
+                disabled={
+                  !reports?.reports?.length || reports?.reports?.length < 20
+                }
               >
                 Next
               </Button>
@@ -211,7 +266,8 @@ function AdminDashboard() {
                         <Badge>{report.status}</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        Reported by {report.reporter} on {format(new Date(report.created_at), 'MMM d, yyyy')}
+                        Reported by {report.reporter} on{' '}
+                        {format(new Date(report.created_at), 'MMM d, yyyy')}
                       </p>
                       <p className="mb-4">{report.reason}</p>
                       {report.admin_notes && (
@@ -224,30 +280,36 @@ function AdminDashboard() {
                     <div className="flex flex-col gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => manageReport.mutate({
-                          id: report.id,
-                          status: 'investigating'
-                        })}
+                        onClick={() =>
+                          manageReport.mutate({
+                            id: report.id,
+                            status: 'investigating',
+                          })
+                        }
                         disabled={report.status === 'investigating'}
                       >
                         Investigate
                       </Button>
                       <Button
                         variant="default"
-                        onClick={() => manageReport.mutate({
-                          id: report.id,
-                          status: 'resolved'
-                        })}
+                        onClick={() =>
+                          manageReport.mutate({
+                            id: report.id,
+                            status: 'resolved',
+                          })
+                        }
                         disabled={report.status === 'resolved'}
                       >
                         Resolve
                       </Button>
                       <Button
                         variant="secondary"
-                        onClick={() => manageReport.mutate({
-                          id: report.id,
-                          status: 'dismissed'
-                        })}
+                        onClick={() =>
+                          manageReport.mutate({
+                            id: report.id,
+                            status: 'dismissed',
+                          })
+                        }
                         disabled={report.status === 'dismissed'}
                       >
                         Dismiss
@@ -281,23 +343,31 @@ function AdminDashboard() {
                 <TableBody>
                   {activity?.trades?.map((trade) => (
                     <TableRow key={trade.id}>
-                      <TableCell className="font-medium">{trade.pokemon__name}</TableCell>
+                      <TableCell className="font-medium">
+                        {trade.pokemon__name}
+                      </TableCell>
                       <TableCell>{trade.buyer__username}</TableCell>
                       <TableCell>{trade.seller__username}</TableCell>
                       <TableCell>${trade.amount}</TableCell>
                       <TableCell>
-                        <Badge variant={trade.is_flagged ? "destructive" : "secondary"}>
+                        <Badge
+                          variant={
+                            trade.is_flagged ? 'destructive' : 'secondary'
+                          }
+                        >
                           {trade.is_flagged ? 'Flagged' : 'Normal'}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <Button
-                          variant={trade.is_flagged ? "outline" : "destructive"}
-                          onClick={() => manageTrade.mutate({
-                            type: 'money',
-                            id: trade.id,
-                            action: trade.is_flagged ? 'unflag' : 'flag'
-                          })}
+                          variant={trade.is_flagged ? 'outline' : 'destructive'}
+                          onClick={() =>
+                            manageTrade.mutate({
+                              type: 'money',
+                              id: trade.id,
+                              action: trade.is_flagged ? 'unflag' : 'flag',
+                            })
+                          }
                           size="sm"
                         >
                           {trade.is_flagged ? 'Unflag' : 'Flag'}
@@ -313,4 +383,5 @@ function AdminDashboard() {
       </Tabs>
     </div>
   )
-} 
+}
+

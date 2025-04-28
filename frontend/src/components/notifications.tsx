@@ -5,9 +5,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { ApiService } from '@/lib/api'
 
 interface Notification {
-  id: string
+  id: number
   message: string
   is_read: boolean
   created_at: string
@@ -19,26 +20,13 @@ export default function NotificationBell() {
   const { data } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const res = await fetch('/api/notifications/')
-      if (!res.ok) {
-        throw new Error('Network response was not ok')
-      }
-      return res.json()
+      return ApiService.getInstance().getNotifications()
     },
   })
 
   const markReadMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/notifications/read/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      if (!res.ok) {
-        throw new Error('Failed to mark notifications as read')
-      }
-      return res.json()
+      return ApiService.getInstance().markNotificationsRead()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })

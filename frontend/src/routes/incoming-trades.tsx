@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
-import type { TradeRequest } from "@/lib/types"
+import { createFileRoute } from '@tanstack/react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
+import type { TradeRequest } from '@/lib/types'
+import { ApiService } from '@/lib/api'
 
-export const Route = createFileRoute("/incoming-trades")({
+export const Route = createFileRoute('/incoming-trades')({
   component: IncomingTradesPage,
 })
 
@@ -12,31 +13,24 @@ function IncomingTradesPage() {
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
-    queryKey: ["incomingTrades"],
-    queryFn: async () => {
-      const res = await fetch("/api/incoming-trades/", { credentials: "include" })
-      if (!res.ok) throw new Error("Failed to fetch incoming trades")
-      return res.json()
-    },
+    queryKey: ['incomingTrades'],
+    queryFn: async () => ApiService.getInstance().getIncomingTrades(),
   })
 
   const respondTrade = useMutation({
-    mutationFn: async ({ tradeId, action }: { tradeId: number; action: "accept" | "decline" }) => {
-      const res = await fetch(`/api/respond-trade/${tradeId}/`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      })
-      if (!res.ok) throw new Error("Failed to respond to trade")
-      return res.json()
-    },
+    mutationFn: async ({
+      tradeId,
+      action,
+    }: {
+      tradeId: number
+      action: 'accept' | 'decline'
+    }) => ApiService.getInstance().respondTradeRequest(tradeId, action),
     onSuccess: () => {
-      toast.success("Trade updated!")
-      queryClient.invalidateQueries({ queryKey: ["incomingTrades"] })
+      toast.success('Trade updated!')
+      queryClient.invalidateQueries({ queryKey: ['incomingTrades'] })
     },
     onError: () => {
-      toast.error("Failed to respond to trade")
+      toast.error('Failed to respond to trade')
     },
   })
 
@@ -56,21 +50,31 @@ function IncomingTradesPage() {
 
       {trades.map((trade) => (
         <div key={trade.id} className="border p-4 rounded shadow space-y-2">
-          <p><strong>From:</strong> {trade.sender.username}</p>
-          <p><strong>Offering:</strong> {trade.sender_pokemon.name}</p>
-          <p><strong>For your:</strong> {trade.receiver_pokemon.name}</p>
+          <p>
+            <strong>From:</strong> {trade.sender.username}
+          </p>
+          <p>
+            <strong>Offering:</strong> {trade.sender_pokemon.name}
+          </p>
+          <p>
+            <strong>For your:</strong> {trade.receiver_pokemon.name}
+          </p>
 
-          {trade.status === "pending" && (
+          {trade.status === 'pending' && (
             <div className="flex gap-2">
               <Button
-                onClick={() => respondTrade.mutate({ tradeId: trade.id, action: "accept" })}
+                onClick={() =>
+                  respondTrade.mutate({ tradeId: trade.id, action: 'accept' })
+                }
                 disabled={respondTrade.isPending}
               >
                 Accept
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => respondTrade.mutate({ tradeId: trade.id, action: "decline" })}
+                onClick={() =>
+                  respondTrade.mutate({ tradeId: trade.id, action: 'decline' })
+                }
                 disabled={respondTrade.isPending}
               >
                 Decline
@@ -78,7 +82,7 @@ function IncomingTradesPage() {
             </div>
           )}
 
-          {trade.status !== "pending" && (
+          {trade.status !== 'pending' && (
             <p className="text-sm italic">Already {trade.status}</p>
           )}
         </div>
@@ -86,3 +90,4 @@ function IncomingTradesPage() {
     </div>
   )
 }
+

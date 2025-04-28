@@ -37,7 +37,6 @@ urlpatterns = [
         name="cancel_trade",
     ),
     path("pokemon/<int:pokemon_id>/buy/", views.buy_pokemon, name="buy_pokemon"),
-    path("marketplace/search/", views.search_marketplace, name="search_marketplace"),
     path("marketplace/filter/", views.filter_marketplace, name="filter_marketplace"),
     path("marketplace/history/", views.trade_history_view, name="trade_history"),
     path("featured-pokemon/", views.featured_pokemon, name="featured_pokemon"),

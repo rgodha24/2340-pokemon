@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
+import { ApiService } from './api'
 
 export interface User {
   id: number
@@ -35,11 +36,7 @@ export function useUser() {
   return useQuery<UserResponse>({
     queryKey: ['user'],
     queryFn: async () => {
-      const response = await fetch('/api/user/')
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data')
-      }
-      return response.json()
+      return ApiService.getInstance().getUser()
     },
   })
 }
@@ -50,20 +47,7 @@ export function useLogin() {
 
   return useMutation<AuthResponse, Error, LoginCredentials>({
     mutationFn: async (credentials) => {
-      const response = await fetch('/api/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Login failed')
-      }
-
-      return response.json()
+      return ApiService.getInstance().login(credentials)
     },
     onSuccess: (data) => {
       toast.success(`Welcome back, ${data.user?.username}!`)
@@ -81,22 +65,9 @@ export function useSignup() {
 
   return useMutation<AuthResponse, Error, SignupCredentials>({
     mutationFn: async (userData) => {
-      const response = await fetch('/api/signup/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Signup failed')
-      }
-
-      return response.json()
+      return ApiService.getInstance().signup(userData)
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success('Account created successfully!')
       navigate({ to: '/login' })
     },
@@ -111,18 +82,7 @@ export function useLogout() {
 
   return useMutation<AuthResponse, Error, void>({
     mutationFn: async () => {
-      const response = await fetch('/api/logout/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Logout failed')
-      }
-
-      return response.json()
+      return ApiService.getInstance().logout()
     },
     onSuccess: () => {
       toast.success('Logged out successfully')

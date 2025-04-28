@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import TradeHistory from '@/components/history'
+import { ApiService } from '@/lib/api'
 
 export const Route = createFileRoute('/user/$username')({
   component: RouteComponent,
   loader: async ({ params: { username } }) => {
-    const res = await fetch(`/api/user/${username}`)
-    return await res.json()
+    return ApiService.getInstance().getUserProfile(username)
   },
 })
 
