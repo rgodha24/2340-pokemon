@@ -14,11 +14,9 @@ import { ApiService } from '@/lib/api'
 export default function Chatbot() {
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
-  const [loading, setLoading] = useState(false)
 
   async function askQuestion() {
     if (!question.trim()) return
-    setLoading(true)
     setAnswer('')
 
     try {
@@ -32,7 +30,6 @@ export default function Chatbot() {
       console.error(err)
       setAnswer('Error: Failed to contact the server.')
     } finally {
-      setLoading(false)
     }
   }
 

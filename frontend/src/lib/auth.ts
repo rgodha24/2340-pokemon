@@ -89,7 +89,7 @@ export function useLogout() {
       queryClient.invalidateQueries({ queryKey: ['user'] })
       window.location.href = '/'
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Failed to log out')
     },
   })

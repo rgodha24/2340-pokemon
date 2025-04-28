@@ -159,12 +159,12 @@ interface UserProfileResponse {
     username: string
     money: number
   }
-  pokemon?: (Pokemon & {
+  pokemon: (Pokemon & {
     // Augmenting Pokemon type based on usage
     money_trade: { id: number; amount_asked: number } | null
     barter_trade: { id: number; trade_preferences: string } | null
   })[]
-  open_trades?: {
+  open_trades: {
     money_trades: { id: number; amount_asked: number; pokemon__name: string }[]
     barter_trades: {
       id: number

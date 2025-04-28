@@ -35,7 +35,7 @@ function RouteComponent() {
           {data.pokemon.map((pokemon) => (
             <Link
               to="/pokemon/$pokemonId"
-              params={{ pokemonId: pokemon.id }}
+              params={{ pokemonId: String(pokemon.id) }}
               key={pokemon.id}
               className="border rounded-lg p-4 shadow-sm"
             >

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,7 +21,6 @@ interface ReportDialogProps {
 export function ReportDialog({ tradeId, trigger }: ReportDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [reason, setReason] = useState('')
-  const queryClient = useQueryClient()
 
   const submitReport = useMutation({
     mutationFn: async () => {
@@ -88,4 +87,5 @@ export function ReportDialog({ tradeId, trigger }: ReportDialogProps) {
       </DialogContent>
     </Dialog>
   )
-} 
+}
+

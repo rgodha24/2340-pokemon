@@ -49,7 +49,7 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
   const { data: myPokemons, isLoading: isLoadingMyPokemons } = useQuery({
     queryKey: ['myPokemons'],
     queryFn: async () => {
-      return ApiService.getInstance().getMyPokemon()
+      return (await ApiService.getInstance().getMyPokemon()).pokemon
     },
     enabled: isAuthenticated && !isOwner && !!pokemon.barter_trade,
   })
@@ -249,9 +249,9 @@ function TradesList({ pokemon, isOwner }: PokemonDetailProps) {
                   <h3 className="font-medium mb-2">Incoming Offers:</h3>
                   {isLoadingIncomingOffers ? (
                     <p>Loading offers...</p>
-                  ) : incomingOffers && incomingOffers.length > 0 ? (
+                  ) : incomingOffers && incomingOffers.trades.length > 0 ? (
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                      {incomingOffers.map((offer) => (
+                      {incomingOffers.trades.map((offer) => (
                         <div
                           key={offer.id}
                           className="border p-3 rounded bg-gray-50"
