@@ -38,6 +38,8 @@ class TradeHistory(models.Model):
     admin_notes = models.TextField(blank=True, null=True)
     is_flagged = models.BooleanField(default=False)
     flag_reason = models.TextField(blank=True, null=True)
+    trade_type = models.CharField(max_length=10, blank=True, null=True)  # 'money' or 'barter'
+    trade_ref_id = models.IntegerField(blank=True, null=True)  # ID of MoneyTrade or BarterTrade
 
 class TradeRequest(models.Model):
     sender = models.ForeignKey(User, related_name="sent_trades", on_delete=models.CASCADE)

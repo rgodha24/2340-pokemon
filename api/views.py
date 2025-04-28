@@ -396,12 +396,18 @@ def buy_pokemon(request, pokemon_id):
         pokemon.user = request.user
         pokemon.save()
 
-        # Use the TradeHistory factory
-        history_entry = trade_history_factory.create_money_trade_history(
+       # Mark the trade as completed instead of deleting it
+        money_trade_id = money_trade.id
+        money_trade.status = 'completed'
+        money_trade.save()
+
+        TradeHistory.objects.create(
             buyer=request.user,
             seller=old_owner,
             pokemon=pokemon,
             amount=money_trade.amount_asked,
+            trade_type='money',
+            trade_ref_id=money_trade_id,
         )
         history_entry.save()
 

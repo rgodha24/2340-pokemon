@@ -74,4 +74,6 @@ urlpatterns = [
         ),
         name="password_reset_complete",
     ),
+    path("trade/<int:trade_id>/report/", views.submit_trade_report, name="submit_trade_report"),
+    path("trade/<int:trade_id>/", views.trade_detail_view, name="trade_detail"),
 ]

@@ -1,5 +1,6 @@
 import { ApiService } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 
 export default function TradeHistory() {
   const { data, isLoading } = useQuery({
@@ -22,7 +23,7 @@ export default function TradeHistory() {
           {data.history.map((h: any, i: number) => (
             <li key={i} className="border p-4 rounded shadow">
               <p>
-                <strong>{h.pokemon_name}</strong>
+                <strong>{h.pokemon_name}</strong> (Trade ID: {h.id})
               </p>
               <p>
                 {h.buyer === h.currentUser
@@ -33,6 +34,17 @@ export default function TradeHistory() {
               <p className="text-gray-500 text-sm">
                 Date: {new Date(h.timestamp).toLocaleString()}
               </p>
+              {h.trade_ref_id && (
+                <p>
+                  <Link
+                    to="/trade/$tradeId"
+                    params={{ tradeId: String(h.trade_ref_id) }}
+                    className="text-blue-600 underline hover:text-blue-800"
+                  >
+                    View Trade Details
+                  </Link>
+                </p>
+              )}
             </li>
           ))}
         </ul>
